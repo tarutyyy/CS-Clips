@@ -1,0 +1,4 @@
+packages:
+  - factory
+allowBuilds:
+  esbuild: true

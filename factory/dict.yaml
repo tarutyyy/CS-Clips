@@ -1,0 +1,5 @@
+# 共通の読み辞書（クリップ固有の読みは clip/NNN-slug/dict.yaml に書く）
+B+木: ビープラスぎ
+SQL: エスキューエル
+PostgreSQL: ポストグレスキューエル
+O(log n): オーダー ログ エヌ

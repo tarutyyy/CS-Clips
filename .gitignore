@@ -1,0 +1,10 @@
+node_modules/
+.direnv/
+.env
+*.log
+.DS_Store
+
+# クリップの生成物（再生成できるもの）
+clip/*/out/
+clip/*/stills/
+clip/*/audio/.cache/
