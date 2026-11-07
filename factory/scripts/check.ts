@@ -1,0 +1,218 @@
+/**
+ * クリップと factory の境界を検査する（契約書 §6 ほか）。
+ * 使い方: node scripts/check.ts [クリップ]  [--strict]   （factory/ で実行）
+ *   クリップを省くと clip/ の全クリップを検査する。
+ *   --strict: 台本まわりの文書（memo.md など）が無い場合もエラーにする。
+ * エラーがあれば終了コード 1。警告だけなら 0。
+ */
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
+import { parse } from "yaml";
+import { factoryDir, clipRoot, resolveClip } from "./lib/clip.ts";
+import { beatsFileSchema } from "./lib/schema.ts";
+
+const CATEGORIES = ["algo", "os", "network", "db", "web"];
+const DIR_RE = /^\d{3}-[a-z0-9-]+$/;
+const MACHINE_FILES = ["clip.yaml", "beats.yaml", "Scene.tsx", "timing.json"];
+const DOC_FILES = ["memo.md", "topic.md", "research.md", "script.md", "report.md"];
+const ALLOWED_PACKAGES = new Set(["@cs-clip/kit", "react", "react/jsx-runtime"]);
+const SKIP_DIRS = new Set(["audio", "out", "stills", "node_modules"]);
+const MAX_SECONDS = 60;
+
+const args = process.argv.slice(2).filter((a) => a !== "--");
+const strict = args.includes("--strict");
+const target = args.find((a) => !a.startsWith("--"));
+
+type Report = { errors: string[]; warnings: string[] };
+const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
+const readIfExists = (p: string) => (existsSync(p) ? readFileSync(p, "utf8") : "");
+
+function listFiles(dir: string, exts: string[], skip: Set<string> = new Set()): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const p = path.join(dir, name);
+    const st = statSync(p);
+    if (st.isDirectory()) {
+      if (!skip.has(name) && !name.startsWith(".") && name !== "generated") out.push(...listFiles(p, exts, skip));
+    } else if (exts.some((e) => name.endsWith(e))) out.push(p);
+  }
+  return out;
+}
+
+/** ソースから import / export from / require / 動的 import の指定子を取り出す。 */
+function importSpecifiers(src: string): string[] {
+  const specs: string[] = [];
+  const patterns = [
+    /\b(?:import|export)\s[^'";]*?\sfrom\s*["']([^"']+)["']/g,
+    /\bimport\s*["']([^"']+)["']/g,
+    /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,
+    /\brequire\s*\(\s*["']([^"']+)["']\s*\)/g,
+  ];
+  for (const re of patterns) for (const m of src.matchAll(re)) specs.push(m[1]);
+  return specs;
+}
+
+function checkClip(id: string, dir: string): Report {
+  const r: Report = { errors: [], warnings: [] };
+  const err = (m: string) => r.errors.push(m);
+  const warn = (m: string) => r.warnings.push(m);
+  const has = (f: string) => existsSync(path.join(dir, f));
+
+  // --- 必須ファイル（契約書 §2）
+  for (const f of MACHINE_FILES) if (!has(f)) err(`${f} がありません`);
+  for (const f of DOC_FILES) if (!has(f)) (strict ? err : warn)(`${f} がありません`);
+
+  // --- clip.yaml（§2.1, §5）
+  if (has("clip.yaml")) {
+    const meta = (parse(readFileSync(path.join(dir, "clip.yaml"), "utf8")) ?? {}) as Record<string, unknown>;
+    if (meta.id !== id) err(`clip.yaml の id (${String(meta.id)}) がディレクトリ名と違います`);
+    if (typeof meta.title !== "string" || meta.title === "") err("clip.yaml の title がありません");
+    if (!CATEGORIES.includes(String(meta.category))) err(`clip.yaml の category が不正です (${String(meta.category)})`);
+    const pkg = JSON.parse(readFileSync(path.join(factoryDir, "package.json"), "utf8"));
+    const kitVersion = pkg["cs-clip"].kitVersion;
+    if (meta.kit !== kitVersion) err(`clip.yaml の kit=${String(meta.kit)} が factory の kitVersion=${kitVersion} と一致しません`);
+  }
+
+  // --- beats.yaml
+  let beatIds: string[] = [];
+  let silenceIds = new Set<string>();
+  if (has("beats.yaml")) {
+    const parsed = beatsFileSchema.safeParse(parse(readFileSync(path.join(dir, "beats.yaml"), "utf8")));
+    if (!parsed.success) {
+      for (const i of parsed.error.issues) err(`beats.yaml: ${i.path.join(".")}: ${i.message}`);
+    } else {
+      beatIds = parsed.data.beats.map((b) => b.id);
+      silenceIds = new Set(parsed.data.beats.filter((b) => b.silence !== undefined).map((b) => b.id));
+    }
+  }
+
+  // --- timing.json と音声
+  if (has("timing.json")) {
+    type T = {
+      fps: number;
+      durationInFrames: number;
+      sourceHash?: string;
+      beats: { id: string; startFrame: number; endFrame: number; audioFrames: number; audio?: string;
+        subtitles?: { text: string; startFrame: number; endFrame: number }[] }[];
+    };
+    const t = JSON.parse(readFileSync(path.join(dir, "timing.json"), "utf8")) as T;
+
+    if (beatIds.length > 0 && JSON.stringify(t.beats.map((b) => b.id)) !== JSON.stringify(beatIds)) {
+      err("timing.json のビートが beats.yaml と一致しません（pnpm tts を実行し直してください）");
+    }
+    const expectHash = sha256(
+      readFileSync(path.join(dir, "beats.yaml"), "utf8") + "\n--\n" +
+        readIfExists(path.join(factoryDir, "dict.yaml")) + "\n--\n" +
+        readIfExists(path.join(dir, "dict.yaml")),
+    );
+    if (t.sourceHash !== expectHash) err("timing.json が古くなっています（beats.yaml か辞書が変わりました）。pnpm tts を実行してください");
+
+    let prevEnd: number | undefined;
+    for (const b of t.beats) {
+      if (prevEnd !== undefined && b.startFrame !== prevEnd) err(`ビート ${b.id}: startFrame (${b.startFrame}) が直前の endFrame (${prevEnd}) と合いません`);
+      if (b.endFrame - b.startFrame < b.audioFrames) err(`ビート ${b.id}: 区間が音声より短いです`);
+      if (b.audio) {
+        if (!has(b.audio)) err(`ビート ${b.id}: ${b.audio} がありません（pnpm tts を実行してください）`);
+      } else if (!silenceIds.has(b.id)) {
+        err(`ビート ${b.id}: audio が記録されていません`);
+      }
+      for (const s of b.subtitles ?? []) {
+        if (s.startFrame < b.startFrame || s.endFrame > b.endFrame || s.startFrame >= s.endFrame) {
+          err(`ビート ${b.id}: 字幕「${s.text}」の区間が不正です`);
+        }
+      }
+      prevEnd = b.endFrame;
+    }
+    if (prevEnd !== undefined && t.durationInFrames < prevEnd) err("durationInFrames が最後のビートより短いです");
+    const sec = t.durationInFrames / t.fps;
+    if (sec > MAX_SECONDS) warn(`総尺が ${sec.toFixed(1)} 秒です（目標は ${MAX_SECONDS} 秒以内）`);
+
+    if (has("audio")) {
+      const used = new Set(t.beats.map((b) => b.audio && path.basename(b.audio)));
+      for (const f of readdirSync(path.join(dir, "audio"))) {
+        if (f.endsWith(".wav") && !used.has(f)) warn(`audio/${f} はどのビートからも使われていません`);
+      }
+    }
+  }
+
+  // --- Scene.tsx と import の境界（§6）
+  for (const file of listFiles(dir, [".ts", ".tsx"], SKIP_DIRS)) {
+    const rel = path.relative(dir, file);
+    for (const spec of importSpecifiers(readFileSync(file, "utf8"))) {
+      if (spec.startsWith(".")) {
+        const resolved = path.resolve(path.dirname(file), spec);
+        const inside = path.relative(dir, resolved);
+        if (inside.startsWith("..") || path.isAbsolute(inside)) err(`${rel}: クリップの外を import しています ("${spec}")`);
+      } else if (!ALLOWED_PACKAGES.has(spec)) {
+        err(`${rel}: 許可されていない import です ("${spec}")。使えるのは @cs-clip/kit と react だけ`);
+      }
+    }
+  }
+  if (has("Scene.tsx")) {
+    const scene = readFileSync(path.join(dir, "Scene.tsx"), "utf8");
+    if (!/\bexport\s+default\b/.test(scene)) err("Scene.tsx に export default がありません");
+    if (beatIds.length > 0) {
+      for (const m of scene.matchAll(/\buseBeat\(\s*["']([^"']+)["']/g)) {
+        if (!beatIds.includes(m[1])) err(`Scene.tsx: useBeat("${m[1]}") は beats.yaml にないビートです`);
+      }
+    }
+  }
+  return r;
+}
+
+/** factory のコードに、特定のクリップ名・パスが書かれていないか（生成物は除く）。 */
+function checkFactoryBoundary(clipIds: string[]): string[] {
+  const errors: string[] = [];
+  const files = [
+    ...listFiles(path.join(factoryDir, "src"), [".ts", ".tsx"]),
+    ...listFiles(path.join(factoryDir, "scripts"), [".ts", ".tsx"]),
+  ];
+  for (const file of files) {
+    const rel = path.relative(factoryDir, file);
+    readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+      const t = line.trim();
+      if (t.startsWith("//") || t.startsWith("*") || t.startsWith("/*")) return; // コメントの例示は許す
+      const hit = clipIds.find((id) => line.includes(id)) ?? line.match(/clip\/\d{3}-[a-z0-9-]+/)?.[0];
+      if (hit) errors.push(`${rel}:${i + 1}: クリップ名・パスの直書きがあります (${hit})`);
+    });
+  }
+  return errors;
+}
+
+// --- 実行
+let targets: { id: string; dir: string }[];
+if (target) {
+  try {
+    targets = [resolveClip(target)];
+  } catch (e) {
+    console.error(`check: ${(e as Error).message}`);
+    process.exit(1);
+  }
+} else {
+  targets = readdirSync(clipRoot)
+    .sort()
+    .filter((n) => DIR_RE.test(n) && statSync(path.join(clipRoot, n)).isDirectory())
+    .map((n) => ({ id: n, dir: path.join(clipRoot, n) }));
+}
+
+let errorCount = 0;
+let warnCount = 0;
+for (const c of targets) {
+  const r = checkClip(c.id, c.dir);
+  errorCount += r.errors.length;
+  warnCount += r.warnings.length;
+  const mark = r.errors.length > 0 ? "NG" : "OK";
+  console.log(`[${mark}] ${c.id}`);
+  for (const e of r.errors) console.log(`  エラー: ${e}`);
+  for (const w of r.warnings) console.log(`  警告: ${w}`);
+}
+
+const allIds = readdirSync(clipRoot).filter((n) => DIR_RE.test(n));
+const boundary = checkFactoryBoundary(allIds);
+errorCount += boundary.length;
+console.log(`[${boundary.length > 0 ? "NG" : "OK"}] factory の境界`);
+for (const e of boundary) console.log(`  エラー: ${e}`);
+
+console.log(`\ncheck: ${targets.length} 件を検査 — エラー ${errorCount} 件 / 警告 ${warnCount} 件`);
+process.exit(errorCount > 0 ? 1 : 0);
