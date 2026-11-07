@@ -32,7 +32,7 @@ const clip = (() => {
 
 // 1. 検査と登録（失敗したら書き出さない）
 console.log("render: 検査中…");
-run(process.execPath, ["scripts/check.ts", clip.id]);
+run(process.execPath, ["scripts/check.ts", clip.dir]);
 run(process.execPath, ["scripts/gen-clips.ts"]);
 
 // 2. Remotion で書き出し
