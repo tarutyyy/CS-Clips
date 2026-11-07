@@ -1,0 +1,154 @@
+{
+  "fps": 30,
+  "durationInFrames": 1707,
+  "sourceHash": "4554c8cbef293253026a2517a8f87cc6e91fb0a7c77c595d3d57c96fb24c13de",
+  "beats": [
+    {
+      "id": "hook",
+      "startFrame": 9,
+      "audioFrames": 174,
+      "endFrame": 192,
+      "audio": "audio/hook.wav",
+      "subtitles": [
+        {
+          "text": "何万件のデータから、1件をほぼ一発で取り出す",
+          "startFrame": 9,
+          "endFrame": 118
+        },
+        {
+          "text": "どうやっているんでしょう？",
+          "startFrame": 118,
+          "endFrame": 192
+        }
+      ]
+    },
+    {
+      "id": "array",
+      "startFrame": 192,
+      "audioFrames": 218,
+      "endFrame": 419,
+      "audio": "audio/array.wav",
+      "subtitles": [
+        {
+          "text": "配列なら、番号さえ分かれば、その箱に直接行けます。3番なら",
+          "startFrame": 192,
+          "endFrame": 368
+        },
+        {
+          "text": "3番を見るだけ",
+          "startFrame": 368,
+          "endFrame": 419
+        }
+      ]
+    },
+    {
+      "id": "hashfn",
+      "startFrame": 419,
+      "audioFrames": 234,
+      "endFrame": 662,
+      "audio": "audio/hashfn.wav",
+      "subtitles": [
+        {
+          "text": "でも、探したいのは、appleのような文字列です。そこで",
+          "startFrame": 419,
+          "endFrame": 561
+        },
+        {
+          "text": "ハッシュ関数で、キーを番号に変えます",
+          "startFrame": 561,
+          "endFrame": 662
+        }
+      ]
+    },
+    {
+      "id": "store",
+      "startFrame": 662,
+      "audioFrames": 107,
+      "endFrame": 778,
+      "audio": "audio/store.wav",
+      "subtitles": [
+        {
+          "text": "appleが3になったら、3番の箱に入れます",
+          "startFrame": 662,
+          "endFrame": 778
+        }
+      ]
+    },
+    {
+      "id": "lookup",
+      "startFrame": 778,
+      "audioFrames": 225,
+      "endFrame": 1012,
+      "audio": "audio/lookup.wav",
+      "subtitles": [
+        {
+          "text": "探すときも、同じ計算で、3番の箱を見るだけ。件数が増えても",
+          "startFrame": 778,
+          "endFrame": 950
+        },
+        {
+          "text": "手間はほぼ同じです",
+          "startFrame": 950,
+          "endFrame": 1012
+        }
+      ]
+    },
+    {
+      "id": "collision",
+      "startFrame": 1012,
+      "audioFrames": 214,
+      "endFrame": 1235,
+      "audio": "audio/collision.wav",
+      "subtitles": [
+        {
+          "text": "ただし箱の数には限りがあり",
+          "startFrame": 1012,
+          "endFrame": 1087
+        },
+        {
+          "text": "別のキーが同じ番号になる「衝突」は避けられません",
+          "startFrame": 1087,
+          "endFrame": 1235
+        }
+      ]
+    },
+    {
+      "id": "chain",
+      "startFrame": 1235,
+      "audioFrames": 217,
+      "endFrame": 1461,
+      "audio": "audio/chain.wav",
+      "subtitles": [
+        {
+          "text": "そのときは、同じ箱につなぎます",
+          "startFrame": 1235,
+          "endFrame": 1316
+        },
+        {
+          "text": "混んだら箱を増やして入れ直すので、列は短いままです",
+          "startFrame": 1316,
+          "endFrame": 1461
+        }
+      ]
+    },
+    {
+      "id": "payoff",
+      "startFrame": 1461,
+      "audioFrames": 207,
+      "endFrame": 1677,
+      "audio": "audio/payoff.wav",
+      "subtitles": [
+        {
+          "text": "**キーから、置き場所を計算する**。だから、平均して",
+          "startFrame": 1461,
+          "endFrame": 1586
+        },
+        {
+          "text": "ほぼ一定の時間で見つかるんです",
+          "startFrame": 1586,
+          "endFrame": 1677
+        }
+      ]
+    }
+  ]
+}

@@ -31,6 +31,9 @@ export { TableView, tableGridPos } from "./components/TableView";
 export type { TableCell } from "./components/TableView";
 export { BTreeView, btreeNodeRect } from "./components/BTreeView";
 export type { BTreeLevel } from "./components/BTreeView";
+export { SlotArray, slotRect } from "./components/SlotArray";
+export type { SlotLayout } from "./components/SlotArray";
+export { Chip } from "./components/Chip";
 export type { Point, Rect } from "./geometry";
 
 // frame
