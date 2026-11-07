@@ -1,0 +1,116 @@
+{
+  "fps": 30,
+  "durationInFrames": 1408,
+  "sourceHash": "286318dda38afec2effa967306086c0a2a53d6b65940a02a799a41496e6eccad",
+  "beats": [
+    {
+      "id": "hook",
+      "startFrame": 9,
+      "audioFrames": 154,
+      "endFrame": 172,
+      "audio": "audio/hook.wav",
+      "subtitles": [
+        {
+          "text": "1億行のテーブルから、1行を探す。どれくらいかかるでしょう？",
+          "startFrame": 9,
+          "endFrame": 172
+        }
+      ]
+    },
+    {
+      "id": "scan",
+      "startFrame": 172,
+      "audioFrames": 258,
+      "endFrame": 439,
+      "audio": "audio/scan.wav",
+      "subtitles": [
+        {
+          "text": "インデックスがないと、先頭から順番に",
+          "startFrame": 172,
+          "endFrame": 283
+        },
+        {
+          "text": "全部の行を調べるしかありません。最悪、1億回です",
+          "startFrame": 283,
+          "endFrame": 439
+        }
+      ]
+    },
+    {
+      "id": "idea",
+      "startFrame": 439,
+      "audioFrames": 220,
+      "endFrame": 668,
+      "audio": "audio/idea.wav",
+      "subtitles": [
+        {
+          "text": "そこで使うのが、インデックス。多くのデータベースでは",
+          "startFrame": 439,
+          "endFrame": 575
+        },
+        {
+          "text": "B+木という、木の形をしています",
+          "startFrame": 575,
+          "endFrame": 668
+        }
+      ]
+    },
+    {
+      "id": "fanout",
+      "startFrame": 668,
+      "audioFrames": 195,
+      "endFrame": 872,
+      "audio": "audio/fanout.wav",
+      "subtitles": [
+        {
+          "text": "1つのノードには、目印が数百個入っています。だから",
+          "startFrame": 668,
+          "endFrame": 803
+        },
+        {
+          "text": "枝がとても広がるんです",
+          "startFrame": 803,
+          "endFrame": 872
+        }
+      ]
+    },
+    {
+      "id": "descend",
+      "startFrame": 872,
+      "audioFrames": 245,
+      "endFrame": 1126,
+      "audio": "audio/descend.wav",
+      "subtitles": [
+        {
+          "text": "根から葉へ、たどるのは、たったの3〜4段。目的の行まで",
+          "startFrame": 872,
+          "endFrame": 1037
+        },
+        {
+          "text": "4回ページを読めば届きます",
+          "startFrame": 1037,
+          "endFrame": 1126
+        }
+      ]
+    },
+    {
+      "id": "payoff",
+      "startFrame": 1126,
+      "audioFrames": 243,
+      "endFrame": 1378,
+      "audio": "audio/payoff.wav",
+      "subtitles": [
+        {
+          "text": "1億行でも、10億行でも、ほとんど同じ",
+          "startFrame": 1126,
+          "endFrame": 1231
+        },
+        {
+          "text": "**インデックスは、探す範囲を一気に絞る**仕組みなんです",
+          "startFrame": 1231,
+          "endFrame": 1378
+        }
+      ]
+    }
+  ]
+}

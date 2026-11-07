@@ -1,8 +1,6 @@
 /**
  * @cs-clip/kit — public API of the factory (see docs/04-contract.md §4).
  * Clips import ONLY from this module. Everything else under factory/ is private.
- *
- * Still to come: Create, Write, Indicate, useMorph, TableView, BTreeView, Arrow, Label
  */
 export const KIT_VERSION = 1;
 
@@ -18,9 +16,22 @@ export type { TweenOptions } from "./motion/tween";
 export { linear, easeOut, easeInOut } from "./motion/easing";
 export type { Easing } from "./motion/easing";
 export { FadeIn, FadeOut } from "./motion/Fade";
+export { Create } from "./motion/Create";
+export { Write } from "./motion/Write";
+export { Indicate, pulse } from "./motion/Indicate";
+export { useMorph } from "./motion/morph";
+export type { MorphOptions } from "./motion/morph";
 
 // parts
 export { Counter } from "./components/Counter";
+export { Label } from "./components/Label";
+export type { LabelProps } from "./components/Label";
+export { Arrow } from "./components/Arrow";
+export { TableView, tableGridPos } from "./components/TableView";
+export type { TableCell } from "./components/TableView";
+export { BTreeView, btreeNodeRect } from "./components/BTreeView";
+export type { BTreeLevel } from "./components/BTreeView";
+export type { Point, Rect } from "./geometry";
 
 // frame
 export { theme } from "./theme";

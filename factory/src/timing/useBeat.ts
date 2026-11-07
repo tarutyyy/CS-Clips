@@ -20,6 +20,8 @@ export type Beat = {
   end: number;
   audioFrames: number;
   isActive: boolean;
+  /** 現在の絶対フレーム（pulse など frame を直接使う部品に渡す） */
+  frame: number;
   /** 0→1。範囲外は 0 / 1 に丸める */
   progress: (opts?: ProgressOptions) => number;
 };
@@ -47,6 +49,7 @@ export function useBeat(id: string): Beat {
     end,
     audioFrames,
     isActive: frame >= start && frame < end,
+    frame,
     progress: ({ offset = 0, duration = audioFrames, easing = linear } = {}) =>
       tween(frame, { from: 0, to: 1, start: start + offset, duration, easing }),
   };
