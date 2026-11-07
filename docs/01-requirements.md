@@ -71,7 +71,7 @@
 - **ライセンス**：TTS キャラ / モデルの利用規約に従いクレジットを表記する
 
 ## 7. 制約・前提
-- 実行環境：Arch Linux、Node.js 26、ffmpeg、Docker、Nix（direnv）
+- 実行環境：Arch Linux、Node.js 22（Nix flake で固定。`.ts` を直接実行できる型除去を使う）、ffmpeg、Docker、Nix（direnv）
 - 現状 npm が未導入 → Nix flake + direnv で用意する（決定済み Q1）
 - VOICEVOX Engine は Docker（`factory/docker-compose.yml`）で起動する（決定済み Q2）
 - Remotion は個人利用なら無料ライセンスで利用可能
@@ -92,7 +92,7 @@
 
 ## 9. 対象外
 - YouTube との連携全般（自動投稿、タイトル・説明文・ハッシュタグの生成、分析）
-- BGM・効果音【要決定 Q5】
+- BGM・効果音（決定済み Q5：1.0 では対象外。将来検討）
 - 横長動画・長尺動画
 
 ## 10. 将来対応：英語版

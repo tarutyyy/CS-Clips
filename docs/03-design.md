@@ -23,7 +23,7 @@
 | 言語 | TypeScript（strict） |
 | 映像 | Remotion 4.x（React） |
 | 描画 | SVG（図解）＋ HTML（テキスト） |
-| 補助 | KaTeX（数式）、Shiki（コード）、BudouX（日本語改行）、zod（スキーマ検証）、yaml |
+| 補助 | KaTeX（数式）、Shiki（コード）、Intl.Segmenter（日本語改行）、zod（スキーマ検証）、yaml |
 | 音声 | VOICEVOX Engine（Docker: `voicevox/voicevox_engine:cpu-latest`） |
 | 後処理 | ffmpeg（loudnorm） |
 | 開発環境 | Nix flake + direnv（nodejs 22 / pnpm / ffmpeg）。決定済み Q1 |
@@ -70,6 +70,12 @@ VOICEVOX と AivisSpeech はほぼ同じ HTTP API（`/audio_query` → `/synthes
 - factory はクリップのパスを引数で受け取り、その中だけを読み書きする。クリップ一覧は `clip/*/clip.yaml` の走査で得る（手書きの登録簿を持たない）
 - 同じリポジトリにする理由：古いクリップの再現が checkout 1 回で済む（factory も同じ時点に戻る）。サブモジュールにするとクリップ 1 本ごとに 2 リポジトリを同期する手間が増える。クリップが増えて分けたくなったら、契約に沿っているので切り出せる
 - 境界は規約だけに頼らず、check（契約 §6）で機械的に検出する
+
+### D11. 音声は staticFile + --public-dir で渡す
+クリップの音声は `clip/<id>/audio/` にあり、factory の外にある。Remotion の `staticFile("<clipId>/audio/<beatId>.wav")` で参照し、Studio・render には `--public-dir=../clip` を渡す。`factory/public` は Remotion が作るシンボリックリンクで gitignore 対象。`.wav` を import して webpack に載せる方式は、クリップを知らずに済まないため採らない。
+
+### D12. 動画の版とシステムの版を分ける
+システムの版（1.0.0）はルート `package.json` の `version` と git タグ `v1.0.0` で表し、変更点は `CHANGELOG.md` に書く。クリップとの契約の版は `factory/package.json` の `cs-clip.kitVersion`（現在 1）で、公開 API の削除・意味の変更でだけ上げる。
 
 ### D7.（将来）日英対応
 beats に `ja` / `en` を持たせ、ビート ID を共通にする。timing は言語ごとに生成する。

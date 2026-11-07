@@ -43,6 +43,7 @@ kit: 1                    # 対応する @cs-clip/kit のメジャーバージ�
 - コマンドは `factory/` で実行する。クリップは番号（`001`）またはパス（`../clip/001-db-index`）で渡す。番号は `clip/001-*` に解決され、複数該当ならエラーにする
 - factory が読み書きしてよい範囲は「渡されたクリップのディレクトリ」と「`factory/` 自身」だけ。他のクリップには触れない
 - 共通の読み辞書は `factory/dict.yaml`。クリップ固有の `dict.yaml` があれば優先する
+- 音声ファイルは `staticFile("<clipId>/audio/<id>.wav")` で参照し、Studio・render は `--public-dir=../clip` で起動する（`pnpm studio` / `pnpm render` が付ける）
 - クリップの一覧が必要なとき（Remotion の Composition 登録など）は、`clip/*/clip.yaml` を走査して得る。手書きの一覧を持たない
 
 ## 4. kit（`@cs-clip/kit`）— クリップに公開する API
@@ -52,7 +53,7 @@ kit: 1                    # 対応する @cs-clip/kit のメジャーバージ�
 |---|---|
 | タイミング | `useBeat`, `TimingContext` |
 | モーション | `tween`, `Create`, `Write`, `FadeIn`, `FadeOut`, `Indicate`, `useMorph` |
-| 部品 | `TableView`, `BTreeView`, `Counter`, `Arrow`, `Label` ほか、追加された図解部品 |
+| 部品 | `TableView`, `BTreeView`, `SlotArray`, `Chip`, `Counter`, `Arrow`, `Label` ほか、追加された図解部品 |
 | 枠 | `theme`, `SafeArea` |
 
 - `Scene.tsx` は上記を `import { … } from "@cs-clip/kit"` で使う。それ以外の import は React と、クリップ内のファイルのみ
