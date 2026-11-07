@@ -162,7 +162,7 @@ useMorph(fromLayout, toLayout, progress)                  // レイアウト間�
 interface TtsProvider {
   name: "voicevox" | "aivis";
   synthesize(input: { text: string; voice: VoiceConfig }):
-    Promise<{ wav: Buffer; durationSec: number; moras: { text: string; endSec: number }[] }>;
+    Promise<{ wav: Buffer }>;   // モーラ単位の時刻は未対応。字幕は文字数比例で割り当てる
 }
 ```
 

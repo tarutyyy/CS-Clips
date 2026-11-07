@@ -21,7 +21,7 @@ const kitVersion: number = pkg["cs-clip"].kitVersion;
 
 type Meta = { id: string; title: string; category: string; kit: number };
 const errors: string[] = [];
-const found: { meta: Meta; rel: string }[] = [];
+const found: { meta: Meta; rel: string; audio: { id: string; file: string }[] }[] = [];
 
 for (const name of readdirSync(clipRoot).sort()) {
   const dir = path.join(clipRoot, name);
@@ -36,7 +36,17 @@ for (const name of readdirSync(clipRoot).sort()) {
   for (const f of ["Scene.tsx", "timing.json"]) {
     if (!existsSync(path.join(dir, f))) errors.push(`${name}: ${f} がありません（tts / 映像実装が未完了）`);
   }
-  found.push({ meta, rel: path.relative(outDir, dir).split(path.sep).join("/") });
+  const audio: { id: string; file: string }[] = [];
+  const timingPath = path.join(dir, "timing.json");
+  if (existsSync(timingPath)) {
+    const t = JSON.parse(readFileSync(timingPath, "utf8")) as { beats: { id: string; audio?: string }[] };
+    for (const b of t.beats) {
+      if (!b.audio) continue;
+      if (!existsSync(path.join(dir, b.audio))) errors.push(`${name}: ${b.audio} がありません（pnpm tts を実行してください）`);
+      else audio.push({ id: b.id, file: b.audio });
+    }
+  }
+  found.push({ meta, rel: path.relative(outDir, dir).split(path.sep).join("/"), audio });
 }
 
 if (errors.length > 0) {
@@ -59,6 +69,8 @@ lines.push(
   "export type ClipEntry = {",
   "  id: string; title: string; category: string; kit: number;",
   "  Scene: ComponentType; timing: Timing;",
+  "  // beat id から音声ファイルへの対応。clip/ からの相対パス（staticFile に渡す）",
+  "  audio: Record<string, string>;",
   "};",
   "",
   "export const clips: ClipEntry[] = [",
@@ -66,7 +78,8 @@ lines.push(
 found.forEach((c, i) => {
   const m = c.meta;
   lines.push(
-    `  { id: ${JSON.stringify(m.id)}, title: ${JSON.stringify(m.title)}, category: ${JSON.stringify(m.category)}, kit: ${m.kit}, Scene: Scene${i}, timing: timing${i} as Timing },`,
+    `  { id: ${JSON.stringify(m.id)}, title: ${JSON.stringify(m.title)}, category: ${JSON.stringify(m.category)}, kit: ${m.kit}, Scene: Scene${i}, timing: timing${i} as Timing,`,
+    `    audio: { ${c.audio.map((a, j) => `${JSON.stringify(a.id)}: ${JSON.stringify(`${m.id}/${a.file}`)}`).join(", ")} } },`,
   );
 });
 lines.push("];", "");

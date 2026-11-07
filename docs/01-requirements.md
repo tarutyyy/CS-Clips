@@ -73,7 +73,7 @@
 ## 7. 制約・前提
 - 実行環境：Arch Linux、Node.js 26、ffmpeg、Docker、Nix（direnv）
 - 現状 npm が未導入 → Nix flake + direnv で用意する（決定済み Q1）
-- VOICEVOX Engine は未起動 → Docker で起動する想定【要決定 Q2】
+- VOICEVOX Engine は Docker（`factory/docker-compose.yml`）で起動する（決定済み Q2）
 - Remotion は個人利用なら無料ライセンスで利用可能
 
 ## 8. MVP の定義

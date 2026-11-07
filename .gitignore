@@ -11,3 +11,9 @@ clip/*/audio/.cache/
 
 # 生成物（scripts/gen-clips.ts が作る）
 factory/src/generated/
+
+# 話者サンプルなどの作業用キャッシュ
+factory/.cache/
+
+# Remotion が --public-dir から自動で作るリンク
+factory/public

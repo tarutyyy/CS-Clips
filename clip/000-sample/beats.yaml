@@ -1,0 +1,15 @@
+voice:
+  provider: voicevox
+  speaker: 3                # ずんだもん（ノーマル）
+  speed: 1.1
+  pitch: 0.0
+  intonation: 1.0
+timing:
+  leadIn: 0.3
+  gap: 0.25
+  tail: 1.0
+beats:
+  - id: hook
+    text: 1億行のテーブルから、1行を探す。
+  - id: count
+    text: 比較は、たったの**3回**で終わります。

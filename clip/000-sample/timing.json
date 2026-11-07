@@ -1,8 +1,35 @@
 {
   "fps": 30,
-  "durationInFrames": 209,
+  "durationInFrames": 240,
+  "sourceHash": "0c9996940983a5ce65ce013e44b9d174329f3c531dc9badd002f980ed988b7fa",
   "beats": [
-    { "id": "hook", "startFrame": 9, "audioFrames": 72, "endFrame": 81 },
-    { "id": "count", "startFrame": 89, "audioFrames": 90, "endFrame": 179 }
+    {
+      "id": "hook",
+      "startFrame": 9,
+      "audioFrames": 100,
+      "endFrame": 117,
+      "audio": "audio/hook.wav",
+      "subtitles": [
+        {
+          "text": "1億行のテーブルから、1行を探す",
+          "startFrame": 9,
+          "endFrame": 117
+        }
+      ]
+    },
+    {
+      "id": "count",
+      "startFrame": 117,
+      "audioFrames": 85,
+      "endFrame": 210,
+      "audio": "audio/count.wav",
+      "subtitles": [
+        {
+          "text": "比較は、たったの**3回**で終わります",
+          "startFrame": 117,
+          "endFrame": 210
+        }
+      ]
+    }
   ]
 }

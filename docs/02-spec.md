@@ -75,7 +75,7 @@ id・題名は `clip.yaml` に持つ。
 ```yaml
 voice:
   provider: voicevox        # voicevox | aivis
-  speaker: 13               # 【要決定 Q3】
+  speaker: 3                # ずんだもん（ノーマル）。決定済み Q3
   speed: 1.1
   pitch: 0.0
   intonation: 1.0
@@ -156,7 +156,7 @@ O(log n): オーダー ログ エヌ
 | 項目 | 値 |
 |---|---|
 | エンジン | VOICEVOX Engine（HTTP, localhost:50021） |
-| 話者 | 【要決定 Q3】 |
+| 話者 | ずんだもん（ノーマル、speaker 3）。決定済み Q3。クリップごとに beats.yaml で変更できる。動画に「VOICEVOX:ずんだもん」のクレジットを表記する |
 | 出力 | WAV, 48kHz, モノラル |
 | 話速 | 1.1（ビートごとに上書き可） |
 | 最終ラウドネス | -14 LUFS（Integrated）, True Peak -1.0 dBTP |

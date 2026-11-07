@@ -4,7 +4,9 @@
   "description": "CS-Clip root workspace. Scripts here delegate to factory/.",
   "scripts": {
     "check": "pnpm --filter @cs-clip/kit run check && tsc -p clip/tsconfig.json",
-    "studio": "pnpm --filter @cs-clip/kit run studio"
+    "studio": "pnpm --filter @cs-clip/kit run studio",
+    "voice-samples": "pnpm --filter @cs-clip/kit run voice-samples",
+    "tts": "pnpm --filter @cs-clip/kit run tts"
   },
   "devDependencies": {
     "@cs-clip/kit": "workspace:*",
