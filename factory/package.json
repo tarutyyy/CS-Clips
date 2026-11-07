@@ -9,18 +9,21 @@
     "kitVersion": 1
   },
   "scripts": {
-    "check": "tsc -p tsconfig.json",
-    "studio": "remotion studio src/index.ts"
+    "gen": "node scripts/gen-clips.ts",
+    "check": "node scripts/gen-clips.ts && tsc -p tsconfig.json",
+    "studio": "node scripts/gen-clips.ts && remotion studio src/remotion-entry.ts"
   },
   "dependencies": {
     "@remotion/cli": "^4.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "remotion": "^4.0.0",
-    "zod": "3.22.3"
+    "zod": "3.22.3",
+    "yaml": "^2.6.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
   }
 }

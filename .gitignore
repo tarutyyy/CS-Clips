@@ -8,3 +8,6 @@ node_modules/
 clip/*/out/
 clip/*/stills/
 clip/*/audio/.cache/
+
+# 生成物（scripts/gen-clips.ts が作る）
+factory/src/generated/

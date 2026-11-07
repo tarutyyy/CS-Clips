@@ -1,0 +1,9 @@
+# VOICEVOX Engine（TTS）。factory/ で `docker compose up -d` する。
+# 起動確認: curl http://localhost:50021/version
+# 話者の一覧: curl http://localhost:50021/speakers
+services:
+  voicevox:
+    image: voicevox/voicevox_engine:cpu-latest
+    ports:
+      - "127.0.0.1:50021:50021"
+    restart: unless-stopped

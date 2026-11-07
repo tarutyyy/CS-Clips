@@ -23,7 +23,7 @@ clip/NNN-slug/  ──(公開 API とファイル規約だけ)──▶  factory
 | `clip.yaml` | ✓ | Claude（ステップ 0） | 管理する |
 | `memo.md` | ✓ | オーナー | 管理する |
 | `topic.md` `research.md` `script.md` `beats.yaml` `report.md` | ✓ | Claude | 管理する |
-| `Scene.tsx` | ✓ | Claude | 管理する |
+| `Scene.tsx`（引数なしのコンポーネントを `export default`） | ✓ | Claude | 管理する |
 | `dict.yaml` | | Claude | 管理する（クリップ固有の読み） |
 | `timing.json` `audio/*.wav` | ✓ | factory（tts） | 管理する |
 | `audio/.cache/` | | factory（tts） | 管理しない |
@@ -66,7 +66,7 @@ kit: 1                    # 対応する @cs-clip/kit のメジャーバージ�
 
 ## 6. 境界の検査（check の項目に加える）
 - `clip/*/**/*.{ts,tsx}` が `@cs-clip/kit`・`react`・クリップ内の相対パス以外を import していない
-- `factory/` 内に `clip/` のパスやクリップ ID の直書きがない
+- `factory/` 内に `clip/` のパスやクリップ ID の直書きがない（生成物 `factory/src/generated/` は除く）
 - `clip.yaml` の `id` がディレクトリ名と一致する
 - 必須ファイルが揃っている（§2）
 - `clip.yaml` の `kit` が factory の `kitVersion` と一致する

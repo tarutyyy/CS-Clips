@@ -93,7 +93,9 @@ CS-Clip/                          # 親リポジトリ
 │   ├── dict.yaml                 # 共通の読み辞書
 │   ├── src/
 │   │   ├── index.ts              # @cs-clip/kit の公開窓口（契約 §4）
-│   │   ├── Root.tsx              # clip/*/clip.yaml を走査して Composition を登録
+│   │   ├── remotion-entry.ts     # Remotion の入口（registerRoot）
+│   │   ├── Root.tsx              # generated/clips.ts から Composition を登録
+│   │   ├── generated/clips.ts    # gen-clips.ts が生成（git 管理しない）
 │   │   ├── Clip.tsx              # 共通の枠：背景・Scene・音声・字幕
 │   │   ├── theme.ts              # 色・フォント・イージング・レイアウト定数
 │   │   ├── timing/               # TimingContext.tsx, useBeat.ts
@@ -101,6 +103,7 @@ CS-Clip/                          # 親リポジトリ
 │   │   ├── components/           # 図解部品
 │   │   └── layout/               # SafeArea, Subtitles
 │   └── scripts/
+│       ├── gen-clips.ts          # clip/*/clip.yaml を走査して generated/clips.ts を作る
 │       ├── lib/schema.ts         # beats.yaml / timing.json / clip.yaml の zod スキーマ
 │       ├── lib/clip.ts           # クリップの解決・走査・境界検査
 │       ├── lib/tts/{provider,voicevox,aivis}.ts
@@ -174,7 +177,7 @@ interface TtsProvider {
 6. timing.json を書き出す
 
 ### 5.2 Root / Clip
-- Root が起動時に `clip/*/clip.yaml` を走査し、各クリップの `Scene.tsx` と `timing.json` を読み込んで Composition を登録する（読み込み方法は基盤フェーズで決める）
+- Root が起動時に `clip/*/clip.yaml` を走査し、各クリップの `Scene.tsx` と `timing.json` を読み込んで Composition を登録する。バンドラは実行時にディレクトリを走査できないため、`scripts/gen-clips.ts` が静的 import の一覧 `src/generated/clips.ts` を生成する（手書きの一覧ではない。studio / check / render の前に自動で走る）。このとき clip.yaml の検査（id・category・kit・必須ファイル）も行う
 - `<Composition id="001-db-index" durationInFrames={timing.durationInFrames} …/>`
 - `Clip` = 背景 ＋ `<TimingContext>` ＋ `<Scene/>` ＋ ビートごとの `<Audio/>` ＋ `<Subtitles/>`
 

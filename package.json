@@ -3,10 +3,13 @@
   "private": true,
   "description": "CS-Clip root workspace. Scripts here delegate to factory/.",
   "scripts": {
-    "check": "pnpm --filter @cs-clip/kit run check",
+    "check": "pnpm --filter @cs-clip/kit run check && tsc -p clip/tsconfig.json",
     "studio": "pnpm --filter @cs-clip/kit run studio"
   },
   "devDependencies": {
-    "@cs-clip/kit": "workspace:*"
+    "@cs-clip/kit": "workspace:*",
+    "react": "^18.3.1",
+    "@types/react": "^18.3.0",
+    "typescript": "^5.6.0"
   }
 }
