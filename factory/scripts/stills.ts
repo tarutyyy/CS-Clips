@@ -7,6 +7,7 @@
 import { mkdirSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { checkAndGenerate, cliArgs, clipFromArg, fail, fromRepoRoot, remotionBin, run } from "./lib/cli.ts";
+import { auditStillsDir, creditFrom } from "./lib/audit.ts";
 import { readTiming } from "./lib/clip.ts";
 
 const TOOL = "stills";
@@ -56,3 +57,8 @@ for (const f of frames) {
   ]);
 }
 console.log(`\nstills: ${frames.length} 枚 → ${fromRepoRoot(outDir)}/`);
+
+const findings = auditStillsDir(outDir, creditFrom(timing));
+for (const f of findings) console.log(`${f.level === "error" ? "エラー" : "警告"}: ${f.still}: ${f.message}`);
+console.log(`stills: 実測チェック — エラー ${findings.filter((f) => f.level === "error").length} 件 / 警告 ${findings.filter((f) => f.level === "warn").length} 件`);
+if (findings.some((f) => f.level === "error")) process.exit(1);

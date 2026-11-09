@@ -72,6 +72,8 @@ kit: 1                    # 対応する @cs-clip/kit のメジャーバージ�
 - `clip.yaml` の `id` がディレクトリ名と一致する
 - 必須ファイルが揃っている（§2）
 - `clip.yaml` の `kit` が factory の `kitVersion` と一致する
+- `Scene.tsx` の `fontSize` に `theme.minFontSize`（40px）未満の数値がない（error）
+- `stills/*.png` があれば実測する：上端・下部 UI（クレジットを除く）への描画は error、右端ボタン列への描画、図の重心・幅・高さ・上下余白の偏り（仕様書 §7.2, §7.3）は warn。`pnpm stills` も同じ検査を末尾で行う
 
 ## 7. 変更の扱い
 | やりたいこと | やる場所 |

@@ -4,20 +4,26 @@ import type { Timing } from "../timing/types";
 
 const PUNCT = /^[、。，．！？!?）」』】〕…ー]+$/;
 
-/** 日本語を単語に区切る。句読点などは直前の語にくっつけ、行頭に来ないようにする。 */
-const segmentJa = (text: string): string[] => {
+/** 前の語にくっつける助詞・助動詞（文節の頭にならないもの） */
+const ATTACH = /^(?:から|まで|より|だけ|しか|ほど|など|ので|のに|です|ます|でした|ました|ない|たい|ている|ています|ていた|てい|ました|ません|でした|[をはがにでとものへやかてしいるた])+$/;
+
+/**
+ * 日本語を文節に区切る。Intl.Segmenter の単語に分けたあと、
+ * 句読点と助詞（「箱」＋「を」など）を直前の語にくっつけ、行頭や文節の途中で折り返さないようにする。
+ */
+export const segmentJa = (text: string): string[] => {
   // lib の型に Intl.Segmenter がない設定でも通るよう any 経由で使う
   const Seg = (Intl as any).Segmenter;
   if (!Seg) return Array.from(text);
   const out: string[] = [];
   for (const { segment } of new Seg("ja", { granularity: "word" }).segment(text) as Iterable<{ segment: string }>) {
-    if (out.length > 0 && PUNCT.test(segment)) out[out.length - 1] += segment;
+    if (out.length > 0 && (PUNCT.test(segment) || ATTACH.test(segment))) out[out.length - 1] += segment;
     else out.push(segment);
   }
   return out;
 };
 
-/** 単語の途中では改行しない（単語ごとに inline-block にする） */
+/** 文節の途中では改行しない（文節ごとに inline-block にする） */
 const words = (text: string, color?: string) =>
   segmentJa(text).map((w, i) => (
     <span key={i} style={{ display: "inline-block", color }}>{w}</span>
@@ -43,8 +49,8 @@ export const Subtitles = ({ timing }: { timing: Timing }) => {
     <div
       style={{
         position: "absolute",
-        left: theme.safe.x,
-        width: theme.safe.width,
+        left: theme.subtitle.x,
+        width: theme.subtitle.width,
         top: theme.subtitle.top,
         height: theme.subtitle.height,
         display: "flex",
@@ -53,7 +59,7 @@ export const Subtitles = ({ timing }: { timing: Timing }) => {
         textAlign: "center",
         fontSize: theme.subtitle.fontSize,
         fontWeight: 700,
-        lineHeight: 1.4,
+        lineHeight: theme.subtitle.lineHeight,
         color: theme.text,
         textShadow: "0 2px 8px rgba(0,0,0,0.8)",
       }}

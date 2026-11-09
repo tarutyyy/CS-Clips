@@ -11,8 +11,13 @@
       "audio": "audio/hook.wav",
       "subtitles": [
         {
-          "text": "1億行のテーブルから、1行を探す。どれくらいかかるでしょう？",
+          "text": "1億行のテーブルから、1行を探す",
           "startFrame": 9,
+          "endFrame": 94
+        },
+        {
+          "text": "どれくらいかかるでしょう？",
+          "startFrame": 94,
           "endFrame": 172
         }
       ]
