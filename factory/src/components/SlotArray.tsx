@@ -1,5 +1,6 @@
 import { theme } from "../theme";
 import type { Rect } from "../geometry";
+import { appearScale, glowFrame } from "./frame";
 
 export type SlotLayout = {
   count: number;
@@ -72,10 +73,9 @@ export const SlotArray = ({
               width: r.width,
               height: r.height,
               boxSizing: "border-box",
-              border: `4px solid ${g > 0.5 ? c : theme.muted}`,
+              ...glowFrame(g, c),
               borderRadius: 14,
-              boxShadow: g > 0 ? `0 0 ${28 * g}px ${c}` : undefined,
-              transform: `scale(${0.92 + 0.08 * a})`,
+              transform: appearScale(a),
             }}
           />
         </div>

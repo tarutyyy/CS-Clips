@@ -1,5 +1,5 @@
 import { useCurrentFrame } from "remotion";
-import type { Point } from "../geometry";
+import { clamp01, type Point } from "../geometry";
 import { easeInOut, linear, type Easing } from "./easing";
 import { tween } from "./tween";
 
@@ -13,7 +13,7 @@ export function useMorph({ at, duration, easing = easeInOut }: MorphOptions) {
   const frame = useCurrentFrame();
   const raw = tween(frame, { from: 0, to: 1, start: at, duration, easing: linear });
   const local = (order = 0, spread = 0) =>
-    easing(Math.min(1, Math.max(0, (raw - order * spread) / (1 - spread))));
+    easing(clamp01((raw - order * spread) / (1 - spread)));
   return {
     /** 全体の進み具合 0→1 */
     t: easing(raw),

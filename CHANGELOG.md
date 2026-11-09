@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### 修正
+- `pnpm check 001` がクリップ番号を tsc に渡して失敗していたのを直した（gen-clips → tsc → check.ts の順に実行する）
+
+### 内部整理（動画の見た目・音声・タイミングは変えない）
+- `factory/scripts/` の重複（引数の解決、`fail`、`sha256`、sourceHash、clip.yaml の検査、`CATEGORIES` など）を `lib/cli.ts` / `lib/clip.ts` に集約
+- 字幕とクレジットの位置・大きさを `theme.subtitle` / `theme.credit` に移した（kit への追加のみ。`kitVersion` は 1 のまま）
+- docs を実装に合わせた（pnpm のコマンド、check の検査項目、字幕・音声の仕様値、未実装の AivisSpeech・backlog・ユニットテストを「将来」と明記）
+
 ## 1.0.0
 
 学習メモ（Markdown）から CS 解説動画（縦 1080×1920 / 30fps / 約60秒 MP4）を作る一連の仕組みが一通り動く最初の版。

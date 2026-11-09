@@ -74,7 +74,7 @@ status: draft           # draft | auto | approved
 id・題名は `clip.yaml` に持つ。
 ```yaml
 voice:
-  provider: voicevox        # voicevox | aivis
+  provider: voicevox        # voicevox（aivis はスキーマ上の予約。tts は未実装でエラーにする）
   speaker: 3                # ずんだもん（ノーマル）。決定済み Q3
   speed: 1.1
   pitch: 0.0
@@ -102,17 +102,16 @@ SQL: エスキューエル
 PostgreSQL: ポストグレスキューエル
 O(log n): オーダー ログ エヌ
 ```
-- 適用順：beats の `yomi` ＞ クリップ固有の辞書 ＞ 共通の辞書（各辞書内は長い語から順に置換）＞ text
-
-### 3.8 clip.yaml
-形式と必須項目は 04 契約書 §2.1。ステップ 0 で Claude が生成する。
+- beats の `yomi` があれば、それをそのまま読む（辞書は適用しない）
+- `yomi` がなければ `text` に辞書を適用する。共通とクリップ固有を合わせ（同じ語はクリップ固有が優先）、長い語から順に 1 回の走査で置換する（置換結果を再び置換しない）
+- どちらの場合も強調記号 `**` は取り除く
 
 ### 3.6 timing.json（自動生成。手で編集しない）
 ```json
 {
   "fps": 30,
   "durationInFrames": 1780,
-  "sourceHash": "sha256 of beats.yaml + dict.yaml + voice",
+  "sourceHash": "sha256（beats.yaml + factory/dict.yaml + クリップの dict.yaml）",
   "beats": [
     {
       "id": "hook",
@@ -125,6 +124,8 @@ O(log n): オーダー ログ エヌ
   ]
 }
 ```
+- `endFrame` は音声のあとの gap を含み、次のビートの `startFrame` と一致する。silence ビートは `audio` を持たない
+- 字幕は句読点で区切って 32 字以内のまとまりにし、文字数に比例した長さで音声区間に割り当てる（最後の字幕はビートの終わりまで）
 
 ### 3.7 report.md
 - 冒頭：メモとの食い違い・誤りの指摘（なければ「なし」）
@@ -132,25 +133,34 @@ O(log n): オーダー ログ エヌ
 - 自己検証で見つけて直した点、残っている懸念
 - 主要フレームの静止画へのリンク（`clip/NNN-slug/stills/*.png`）
 
+### 3.8 clip.yaml
+形式と必須項目は 04 契約書 §2.1。ステップ 0 で Claude が生成する。
+
 ## 4. コマンド仕様
-`npm run` は `factory/` で実行する。`001` は `clip/001-*` に解決される（パス指定も可）。factory が読み書きするのは指定したクリップのディレクトリの中だけ（境界は 04 契約書）。
+コマンドは pnpm のスクリプトで、リポジトリのルートでも `factory/` でも同じように動く（ルートの `package.json` が factory に委譲する）。環境は Nix（`direnv allow` か `nix develop -c pnpm …`）。`001` は `clip/001-*` に解決される（パス指定も可。パスは `factory/` からの相対）。factory が読み書きするのは指定したクリップのディレクトリの中だけ（境界は 04 契約書）。
 
 | コマンド | 動作 |
 |---|---|
 | `/make-video <クリップのパス> [--review]` | Claude Code のスキル（リポジトリのルートで実行）。メモから MP4 まで一気通貫で実行する（§2） |
-| `npm run studio` | Remotion Studio を起動し、全クリップをプレビューできる |
-| `npm run tts -- 001` | beats.yaml から音声と timing.json を生成する。変更がないビートはキャッシュを使う |
-| `npm run check -- 001` | 検証する（下記）。エラーがあれば終了コード 1 |
-| `npm run render -- 001` | check → レンダリング → ラウドネス正規化 → `clip/001-db-index/out/video.mp4` |
-| `npm run stills -- 001` | 各ビートの中間・終端フレームを `stills/*.png` に書き出す（自己検証用） |
-| `npm run engine:up` | VOICEVOX Engine を Docker で起動する |
+| `pnpm studio` | Remotion Studio を起動し、全クリップをプレビューできる |
+| `pnpm tts 001` | beats.yaml から音声と timing.json を生成する。変更がないビートはキャッシュ（`audio/.cache/`）を使う |
+| `pnpm check [001] [--strict]` | 検証する（下記）。クリップを省くと全クリップ。エラーがあれば終了コード 1 |
+| `pnpm stills 001 [フレーム,…]` | 各ビートの始まり直後・中ほど・終わり直前と最終フレームを `stills/*.png` に書き出す（自己検証用）。フレームの指定もできる |
+| `pnpm render 001` | check → レンダリング（`out/raw.mp4`）→ ラウドネス正規化 → `clip/001-db-index/out/video.mp4` |
+| `pnpm voice-samples` | 話者の聞き比べ用 wav を `factory/.cache/voice-samples/` に作る |
+| `docker compose -f factory/docker-compose.yml up -d` | VOICEVOX Engine を Docker で起動する（`127.0.0.1:50021`） |
 
 ### check の検証項目
-- 総尺が 60 秒以下（警告 58 秒超、エラー 60 秒超）
-- timing.json の `sourceHash` が最新である（古ければ tts の再実行を促す）
-- Scene.tsx が参照するビート ID がすべて beats.yaml に存在する
-- 字幕 1 行の文字数が上限以下
-- 各ファイルの `status` が auto または approved である（`--review` 時は approved を要求）
+`pnpm check` は gen-clips（全クリップの clip.yaml の検査と Composition 一覧の生成）と tsc（factory と clip の型検査）のあとに、次を検査する。
+- 必須ファイル（契約書 §2）が揃っている。台本まわりの文書（memo / topic / research / script / report）が無いのは警告（`--strict` でエラー）
+- clip.yaml の id・title・category・kit（契約書 §2.1, §5）
+- beats.yaml が §3.4 の形式に合い、ビート ID が重複しない
+- timing.json のビートが beats.yaml と一致し、`sourceHash` が最新である（古ければ tts の再実行を促す）
+- ビートの区間が連続し、音声より短くない。音声ファイルがある。字幕の区間がビートの中にある
+- 総尺が 60 秒を超えたら警告する。どのビートからも使われていない `audio/*.wav` も警告する
+- Scene.tsx に `export default` があり、`useBeat("…")` のビート ID がすべて beats.yaml に存在する
+- import の境界と factory 側の直書き（契約書 §6）
+- 将来：各ファイルの `status` の検査（`--review` 時は approved を要求）。今は Claude がスキルの手順で確認する
 
 ## 5. 音声仕様
 | 項目 | 値 |
@@ -158,19 +168,18 @@ O(log n): オーダー ログ エヌ
 | エンジン | VOICEVOX Engine（HTTP, localhost:50021） |
 | 話者 | ずんだもん（ノーマル、speaker 3）。決定済み Q3。クリップごとに beats.yaml で変更できる。動画に「VOICEVOX:ずんだもん」のクレジットを表記する |
 | 出力 | WAV, 48kHz, モノラル |
-| 話速 | 1.1（ビートごとに上書き可） |
-| 最終ラウドネス | -14 LUFS（Integrated）, True Peak -1.0 dBTP |
+| 話速 | 1.1（beats.yaml の `voice.speed` でクリップごとに変更できる） |
+| 最終ラウドネス | -14 LUFS（Integrated）, True Peak -1.5 dBTP, LRA 11（ffmpeg loudnorm の 2 パス） |
 
 ## 6. 字幕仕様
 | 項目 | 値 |
 |---|---|
-| 位置 | 字幕領域（y = 1350〜1550）の中央 |
-| フォント | Noto Sans JP Bold, 56px, 白, 黒の縁取りなし（背景が暗いため） |
-| 1 行の上限 | 16 字 |
-| 行数 | 最大 2 行。超える場合は句読点で分割し、モーラ時間で表示を切り替える |
+| 位置 | 字幕領域（x = 60〜960, y = 1400〜1700）の中央 |
+| フォント | Noto Sans JP Bold, 56px, 白（`theme.text`）, 縁取りなし・薄い影（`0 2px 8px`） |
+| 1 枚の上限 | 32 字（1 行 16 字 × 最大 2 行の目安）。超える場合は句読点で分割し、文字数に比例した時間で切り替える |
 | 改行 | 文節単位（`Intl.Segmenter("ja")` で単語に分け、単語の途中では折り返さない） |
 | 強調 | `**語**` を黄色（`#F4D35E`）で表示 |
-| 表示切り替え | フェード 4 フレーム |
+| 表示切り替え | フェードなしで切り替える |
 
 ## 7. 映像仕様
 | 項目 | 値 |

@@ -1,5 +1,6 @@
 import { theme } from "../theme";
-import type { Rect } from "../geometry";
+import { clamp01, type Rect } from "../geometry";
+import { appearScale, glowFrame } from "./frame";
 
 export type ArrayRowLayout = {
   count: number;
@@ -50,7 +51,7 @@ export const ArrayRow = ({
       const a = appear(i);
       const g = glow(i);
       const c = glowColor(i);
-      const d = Math.min(1, Math.max(0, dim(i)));
+      const d = clamp01(dim(i));
       const lit = g > 0.5;
       return (
         <div
@@ -62,10 +63,9 @@ export const ArrayRow = ({
             width: r.width,
             height: r.height,
             boxSizing: "border-box",
-            border: `4px solid ${lit ? c : theme.muted}`,
+            ...glowFrame(g, c),
             borderRadius: 10,
             background: lit ? `${c}33` : undefined,
-            boxShadow: g > 0 ? `0 0 ${28 * g}px ${c}` : undefined,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -75,7 +75,7 @@ export const ArrayRow = ({
             letterSpacing: -2,
             color: lit ? c : theme.text,
             opacity: a * (1 - 0.8 * d),
-            transform: `scale(${0.92 + 0.08 * a})`,
+            transform: appearScale(a),
           }}
         >
           {v}

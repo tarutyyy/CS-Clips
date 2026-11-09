@@ -14,7 +14,7 @@ export type BeatInput = {
 export type TimelineConfig = { fps: number; leadIn: number; tail: number };
 
 /** 字幕を、文字数に比例した長さで音声区間に割り当てる（最後の字幕はビート終端まで）。 */
-export function allocateSubtitles(
+function allocateSubtitles(
   chunks: string[],
   start: number,
   audioFrames: number,

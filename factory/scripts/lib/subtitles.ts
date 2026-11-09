@@ -1,5 +1,5 @@
 /** 字幕 1 枚の上限。1 行 16 字 × 最大 2 行（仕様書 §6）。 */
-export const MAX_SUBTITLE_CHARS = 32;
+const MAX_SUBTITLE_CHARS = 32;
 
 export const visibleLength = (s: string) => [...s.replace(/\*\*/g, "")].length;
 

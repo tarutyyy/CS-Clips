@@ -1,6 +1,7 @@
 import { theme } from "../theme";
 import type { Rect } from "../geometry";
 import { Arrow } from "./Arrow";
+import { appearScale, glowFrame } from "./frame";
 
 export type BTreeLevel = {
   /** この段のノード数。下の段の数は、この数で割り切れること */
@@ -85,11 +86,10 @@ export const BTreeView = ({
               width: r.width,
               height: r.height,
               boxSizing: "border-box",
-              border: `4px solid ${g > 0.5 ? theme.yellow : theme.muted}`,
+              ...glowFrame(g, theme.yellow),
               borderRadius: 14,
-              boxShadow: g > 0 ? `0 0 ${28 * g}px ${theme.yellow}` : undefined,
               opacity: p,
-              transform: `scale(${(0.92 + 0.08 * p) * nodeScale(l, k)})`,
+              transform: appearScale(p, nodeScale(l, k)),
               display: "flex",
             }}
           >

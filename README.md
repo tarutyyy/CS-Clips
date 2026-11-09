@@ -30,10 +30,11 @@ pnpm check              # 全クリップを検査
 | コマンド | 内容 |
 |---|---|
 | `pnpm tts NNN` | 音声合成 → `audio/*.wav` と `timing.json` |
-| `pnpm check [clip]` | 構成・タイミング・境界の検査（`--strict` で警告もエラー） |
+| `pnpm check [NNN]` | 構成・タイミング・境界の検査（省くと全クリップ。`--strict` で文書の欠けもエラー） |
 | `pnpm stills NNN [frames]` | 静止画を `stills/` に出力 |
 | `pnpm studio` | Remotion Studio でプレビュー |
 | `pnpm render NNN` | `out/raw.mp4` → loudnorm → `out/video.mp4` |
+| `pnpm voice-samples` | 話者の聞き比べ用 wav を `factory/.cache/voice-samples/` に出力 |
 
 台本を直したら `beats.yaml` を編集して `pnpm tts NNN` → `pnpm render NNN`。タイミングは自動で再計算される。
 

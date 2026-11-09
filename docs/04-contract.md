@@ -40,7 +40,7 @@ kit: 1                    # 対応する @cs-clip/kit のメジャーバージ�
 ```
 
 ## 3. factory の呼び出し規約
-- コマンドは `factory/` で実行する。クリップは番号（`001`）またはパス（`../clip/001-db-index`）で渡す。番号は `clip/001-*` に解決され、複数該当ならエラーにする
+- コマンドは `factory/` で実行する（ルートの `pnpm …` は factory に委譲するので同じ）。クリップは番号（`001`）またはパス（`../clip/001-db-index`、`factory/` からの相対）で渡す。番号は `clip/001-*` に解決され、複数該当ならエラーにする
 - factory が読み書きしてよい範囲は「渡されたクリップのディレクトリ」と「`factory/` 自身」だけ。他のクリップには触れない
 - 共通の読み辞書は `factory/dict.yaml`。クリップ固有の `dict.yaml` があれば優先する
 - 音声ファイルは `staticFile("<clipId>/audio/<id>.wav")` で参照し、Studio・render は `--public-dir=../clip` で起動する（`pnpm studio` / `pnpm render` が付ける）
@@ -52,9 +52,10 @@ kit: 1                    # 対応する @cs-clip/kit のメジャーバージ�
 | 区分 | 公開するもの |
 |---|---|
 | タイミング | `useBeat`, `TimingContext` |
-| モーション | `tween`, `Create`, `Write`, `FadeIn`, `FadeOut`, `Indicate`, `useMorph` |
-| 部品 | `TableView`, `BTreeView`, `SlotArray`, `ArrayRow`, `Chip`, `Counter`, `Arrow`, `Label` ほか、追加された図解部品 |
+| モーション | `tween`, `linear` / `easeOut` / `easeInOut`, `Create`, `Write`, `FadeIn`, `FadeOut`, `Indicate`, `pulse`, `useMorph` |
+| 部品 | `TableView`, `BTreeView`, `SlotArray`, `ArrayRow`, `Chip`, `Counter`, `Arrow`, `Label` ほか、追加された図解部品。配置の計算 `tableGridPos`, `btreeNodeRect`, `slotRect`, `arrayCellRect` |
 | 枠 | `theme`, `SafeArea` |
+| その他 | `KIT_VERSION`、型（`Beat`, `Timing`, `Point`, `Rect`, 各部品の props・配置の型など） |
 
 - `Scene.tsx` は上記を `import { … } from "@cs-clip/kit"` で使う。それ以外の import は React と、クリップ内のファイルのみ
 - `@cs-clip/kit` は pnpm workspace のパッケージとして解決する（決定済み Q6）。`factory/package.json` の `name` が `@cs-clip/kit`、ルートの devDependencies が `workspace:*` で参照する。tsconfig の `paths` や webpack alias は使わない（設定の二重管理を避けるため）

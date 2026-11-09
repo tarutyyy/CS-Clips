@@ -1,32 +1,36 @@
 /**
  * クリップと factory の境界を検査する（契約書 §6 ほか）。
- * 使い方: node scripts/check.ts [クリップ]  [--strict]   （factory/ で実行）
+ * 使い方: pnpm check [クリップ] [--strict]   （ルートでも factory/ でもよい。check.ts の前に gen-clips と tsc が走る）
  *   クリップを省くと clip/ の全クリップを検査する。
  *   --strict: 台本まわりの文書（memo.md など）が無い場合もエラーにする。
  * エラーがあれば終了コード 1。警告だけなら 0。
  */
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
-import { factoryDir, clipRoot, resolveClip } from "./lib/clip.ts";
+import { cliArgs, clipFromArg } from "./lib/cli.ts";
+import {
+  MAX_SECONDS,
+  factoryDir,
+  listClips,
+  readSources,
+  readTiming,
+  sourceHash,
+  validateMeta,
+  type ClipRef,
+} from "./lib/clip.ts";
 import { beatsFileSchema } from "./lib/schema.ts";
 
-const CATEGORIES = ["algo", "os", "network", "db", "web"];
-const DIR_RE = /^\d{3}-[a-z0-9-]+$/;
 const MACHINE_FILES = ["clip.yaml", "beats.yaml", "Scene.tsx", "timing.json"];
 const DOC_FILES = ["memo.md", "topic.md", "research.md", "script.md", "report.md"];
 const ALLOWED_PACKAGES = new Set(["@cs-clip/kit", "react", "react/jsx-runtime"]);
 const SKIP_DIRS = new Set(["audio", "out", "stills", "node_modules"]);
-const MAX_SECONDS = 60;
 
-const args = process.argv.slice(2).filter((a) => a !== "--");
+const args = cliArgs();
 const strict = args.includes("--strict");
 const target = args.find((a) => !a.startsWith("--"));
 
 type Report = { errors: string[]; warnings: string[] };
-const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
-const readIfExists = (p: string) => (existsSync(p) ? readFileSync(p, "utf8") : "");
 
 function listFiles(dir: string, exts: string[], skip: Set<string> = new Set()): string[] {
   const out: string[] = [];
@@ -66,12 +70,7 @@ function checkClip(id: string, dir: string): Report {
   // --- clip.yaml（§2.1, §5）
   if (has("clip.yaml")) {
     const meta = (parse(readFileSync(path.join(dir, "clip.yaml"), "utf8")) ?? {}) as Record<string, unknown>;
-    if (meta.id !== id) err(`clip.yaml の id (${String(meta.id)}) がディレクトリ名と違います`);
-    if (typeof meta.title !== "string" || meta.title === "") err("clip.yaml の title がありません");
-    if (!CATEGORIES.includes(String(meta.category))) err(`clip.yaml の category が不正です (${String(meta.category)})`);
-    const pkg = JSON.parse(readFileSync(path.join(factoryDir, "package.json"), "utf8"));
-    const kitVersion = pkg["cs-clip"].kitVersion;
-    if (meta.kit !== kitVersion) err(`clip.yaml の kit=${String(meta.kit)} が factory の kitVersion=${kitVersion} と一致しません`);
+    validateMeta(id, meta).forEach(err);
   }
 
   // --- beats.yaml
@@ -89,24 +88,12 @@ function checkClip(id: string, dir: string): Report {
 
   // --- timing.json と音声
   if (has("timing.json")) {
-    type T = {
-      fps: number;
-      durationInFrames: number;
-      sourceHash?: string;
-      beats: { id: string; startFrame: number; endFrame: number; audioFrames: number; audio?: string;
-        subtitles?: { text: string; startFrame: number; endFrame: number }[] }[];
-    };
-    const t = JSON.parse(readFileSync(path.join(dir, "timing.json"), "utf8")) as T;
+    const t = readTiming(dir);
 
     if (beatIds.length > 0 && JSON.stringify(t.beats.map((b) => b.id)) !== JSON.stringify(beatIds)) {
       err("timing.json のビートが beats.yaml と一致しません（pnpm tts を実行し直してください）");
     }
-    const expectHash = sha256(
-      readFileSync(path.join(dir, "beats.yaml"), "utf8") + "\n--\n" +
-        readIfExists(path.join(factoryDir, "dict.yaml")) + "\n--\n" +
-        readIfExists(path.join(dir, "dict.yaml")),
-    );
-    if (t.sourceHash !== expectHash) err("timing.json が古くなっています（beats.yaml か辞書が変わりました）。pnpm tts を実行してください");
+    if (t.sourceHash !== sourceHash(readSources(dir))) err("timing.json が古くなっています（beats.yaml か辞書が変わりました）。pnpm tts を実行してください");
 
     let prevEnd: number | undefined;
     for (const b of t.beats) {
@@ -181,20 +168,8 @@ function checkFactoryBoundary(clipIds: string[]): string[] {
 }
 
 // --- 実行
-let targets: { id: string; dir: string }[];
-if (target) {
-  try {
-    targets = [resolveClip(target)];
-  } catch (e) {
-    console.error(`check: ${(e as Error).message}`);
-    process.exit(1);
-  }
-} else {
-  targets = readdirSync(clipRoot)
-    .sort()
-    .filter((n) => DIR_RE.test(n) && statSync(path.join(clipRoot, n)).isDirectory())
-    .map((n) => ({ id: n, dir: path.join(clipRoot, n) }));
-}
+const allClips = listClips();
+const targets: ClipRef[] = target ? [clipFromArg("check", target)] : allClips;
 
 let errorCount = 0;
 let warnCount = 0;
@@ -208,8 +183,7 @@ for (const c of targets) {
   for (const w of r.warnings) console.log(`  警告: ${w}`);
 }
 
-const allIds = readdirSync(clipRoot).filter((n) => DIR_RE.test(n));
-const boundary = checkFactoryBoundary(allIds);
+const boundary = checkFactoryBoundary(allClips.map((c) => c.id));
 errorCount += boundary.length;
 console.log(`[${boundary.length > 0 ? "NG" : "OK"}] factory の境界`);
 for (const e of boundary) console.log(`  エラー: ${e}`);

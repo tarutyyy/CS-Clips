@@ -23,7 +23,7 @@
 | 言語 | TypeScript（strict） |
 | 映像 | Remotion 4.x（React） |
 | 描画 | SVG（図解）＋ HTML（テキスト） |
-| 補助 | KaTeX（数式）、Shiki（コード）、Intl.Segmenter（日本語改行）、zod（スキーマ検証）、yaml |
+| 補助 | Intl.Segmenter（日本語改行）、zod（スキーマ検証）、yaml。数式（KaTeX）・コード（Shiki）の表示は将来、必要になったら入れる |
 | 音声 | VOICEVOX Engine（Docker: `voicevox/voicevox_engine:cpu-latest`） |
 | 後処理 | ffmpeg（loudnorm） |
 | 開発環境 | Nix flake + direnv（nodejs 22 / pnpm / ffmpeg）。決定済み Q1 |
@@ -40,6 +40,7 @@
 
 ### D3. TTS はプロバイダ抽象化
 VOICEVOX と AivisSpeech はほぼ同じ HTTP API（`/audio_query` → `/synthesis`）を持つ。`TtsProvider` で切り替える。
+現在の実装は VOICEVOX（`lib/tts/voicevox.ts`）だけ。AivisSpeech（`aivis.ts`）は将来対応で、beats.yaml に `provider: aivis` を書くと tts は「未実装」でエラーにする。
 
 ### D4. オブジェクトの連続性
 場面をカットせず、同じオブジェクトの変形・移動で次の状態へつなぐ。1 クリップ＝1 つの連続キャンバス。
@@ -54,14 +55,14 @@ VOICEVOX と AivisSpeech はほぼ同じ HTTP API（`/audio_query` → `/synthes
 
 ### D8. 一気通貫の実行は Claude Code のスキルが担う
 `/make-video` スキル（`.claude/skills/make-video/SKILL.md`）が手順書となり、Claude Code がステップ 0〜9 を順に実行する。
-機械的な処理（TTS、check、render、静止画書き出し）は npm スクリプトに切り出し、スキルからはそれを呼ぶだけにする。
+機械的な処理（TTS、check、render、静止画書き出し）は pnpm スクリプト（`factory/scripts/`）に切り出し、スキルからはそれを呼ぶだけにする。
 - 理由：メモの解釈・台本・Scene.tsx の実装は LLM の判断が要るため、別途オーケストレータを書くより Claude Code 自身に任せるのが単純
 - 将来、無人実行したくなったら `claude -p "/make-video clip/002-x"` でそのまま呼べる
 
 ### D9. 自動生成の品質は「部品の厚み」と「自己検証ループ」で担保する
 人のレビューなしで Scene.tsx を書かせるため、品質の振れ幅を小さくする仕組みを入れる。
 - 図解部品・モーション API を厚くし、Scene.tsx は「部品の配置と `useBeat` による時刻指定」が中心の短いコードになるようにする
-- 自己検証：`npm run stills -- NNN` が各ビートの中間・終端フレームを PNG に書き出し、Claude がそれを見て Gate3 のチェックリストで判定する。問題があれば修正し、最大 3 回まで繰り返す
+- 自己検証：`pnpm stills NNN` が各ビートの始まり直後・中ほど・終わり直前のフレームを PNG に書き出し、Claude がそれを見て Gate3 のチェックリストで判定する。問題があれば修正し、最大 3 回まで繰り返す
 - クリップを重ねて新しい部品が必要になったら、Scene.tsx に書かず `factory/src/components/` に追加する（US4）
 
 ### D10. factory と clip を同じリポジトリの中で疎結合に分ける
@@ -90,7 +91,6 @@ CS-Clip/                          # 親リポジトリ
 ├── flake.nix / .envrc            # 開発環境（Nix + direnv）
 ├── pnpm-workspace.yaml           # factory を @cs-clip/kit として登録
 ├── package.json / tsconfig.base.json
-├── backlog.md                    # 選ばなかった論点の蓄積（MVP 後）
 ├── docs/                         # 01 要件 / 02 仕様 / 03 設計 / 04 契約
 ├── factory/                      # 道具。クリップの中身を知らない
 │   ├── CLAUDE.md                 # 映像実装・調査の規約
@@ -102,18 +102,25 @@ CS-Clip/                          # 親リポジトリ
 │   │   ├── remotion-entry.ts     # Remotion の入口（registerRoot）
 │   │   ├── Root.tsx              # generated/clips.ts から Composition を登録
 │   │   ├── generated/clips.ts    # gen-clips.ts が生成（git 管理しない）
-│   │   ├── Clip.tsx              # 共通の枠：背景・Scene・音声・字幕
-│   │   ├── theme.ts              # 色・フォント・イージング・レイアウト定数
-│   │   ├── timing/               # TimingContext.tsx, useBeat.ts
-│   │   ├── motion/               # 3b1b 風モーション API
+│   │   ├── Clip.tsx              # 共通の枠：背景・Scene・音声・字幕・クレジット
+│   │   ├── theme.ts              # 色・フォント・レイアウト定数（字幕・クレジットの位置を含む）
+│   │   ├── geometry.ts           # Point / Rect 型
+│   │   ├── timing/               # TimingContext.tsx, useBeat.ts, types.ts（timing.json の型）
+│   │   ├── motion/               # 3b1b 風モーション API（tween, easing, Fade, Create, Write, Indicate, morph）
 │   │   ├── components/           # 図解部品
-│   │   └── layout/               # SafeArea, Subtitles
+│   │   ├── subtitles/            # Subtitles
+│   │   └── layout/               # SafeArea
 │   └── scripts/
 │       ├── gen-clips.ts          # clip/*/clip.yaml を走査して generated/clips.ts を作る
-│       ├── lib/schema.ts         # beats.yaml / timing.json / clip.yaml の zod スキーマ
-│       ├── lib/clip.ts           # クリップの解決・走査・境界検査
-│       ├── lib/tts/{provider,voicevox,aivis}.ts
-│       └── tts.ts  check.ts  render.ts  stills.ts
+│       ├── tts.ts  check.ts  render.ts  stills.ts  voice-samples.ts
+│       └── lib/
+│           ├── clip.ts           # クリップの解決・走査、clip.yaml の検査、sourceHash
+│           ├── cli.ts            # コマンド共通（引数・エラー終了・子プロセス）
+│           ├── schema.ts         # beats.yaml の zod スキーマ
+│           ├── reading.ts        # 読み辞書の適用
+│           ├── subtitles.ts  timeline.ts   # 字幕の分割、フレームの割り当て
+│           ├── wav.ts  loudnorm.ts
+│           └── tts/{provider,voicevox}.ts  # aivis.ts は将来
 └── clip/                         # 成果物。データ中心
     ├── README.md
     └── 001-db-index/
@@ -132,11 +139,13 @@ CS-Clip/                          # 親リポジトリ
 
 ### 4.1 タイミング
 ```ts
-type BeatTiming = { id: string; startFrame: number; endFrame: number; audioFrames: number };
+type BeatTiming = { id: string; startFrame: number; endFrame: number; audioFrames: number;
+                    audio?: string; subtitles?: Subtitle[] };   // timing.json の 1 ビート（src/timing/types.ts）
 
 // Scene 内で使う
 const b = useBeat("scan");
-b.start; b.end;                         // フレーム
+b.start; b.end; b.audioFrames;          // フレーム
+b.frame;                                // 現在の絶対フレーム（pulse などに渡す）
 b.progress(opts?: { offset?: number; duration?: number; easing?: Easing }); // 0→1
 b.isActive;
 ```
@@ -146,22 +155,29 @@ b.isActive;
 ### 4.2 モーション API（src/motion/）
 すべて「時刻を受け取り、補間値を返す」関数か、それを包むコンポーネントとして実装する。
 ```ts
-tween(frame, { from, to, start, duration, easing })      // 数値・色・座標の補間
-<Create at={b.start} duration={20}>…SVG path…</Create>   // ストロークを描画
-<Write at={…}>テキスト</Write>                            // 文字を順に出す
-<FadeIn at={…}/> <FadeOut at={…}/>
-<Indicate at={…} color={theme.yellow}/>                   // 一瞬拡大して色付け
-useMorph(fromLayout, toLayout, progress)                  // レイアウト間の補間（D4 の要）
+tween(frame, { from, to, start, duration, easing })      // 数値の補間（既定 easeInOut）
+linear / easeOut / easeInOut                              // イージング
+<FadeIn at={…} duration={8}>…</FadeIn> <FadeOut at={…}>…</FadeOut>
+<Create at={b.start} duration={12}>…</Create>             // 少し下からふわっと現れる
+<Write text="…" x={…} y={…} at={…} duration={30} />       // Label の文字を 1 字ずつ出す
+<Indicate at={…} duration={20} scale={1.15}>…</Indicate>  // 一度だけ膨らませて注目させる
+pulse(frame, { at, duration })                            // 0→1→0 と一度だけ脈打つ値
+const m = useMorph({ at, duration, easing });             // レイアウト間の補間（D4 の要）
+m.t; m.mix(a, b, order?, spread?); m.point(p, q, order?, spread?);
 ```
 
-### 4.3 001 で必要な図解部品
+### 4.3 図解部品（src/components/）
+部品は「見た目だけ」を持ち、位置・出現・強調の値は Scene が `useBeat` / `tween` / `useMorph` から作って渡す。
 | 部品 | 責務 | 主な props |
 |---|---|---|
-| `TableView` | 行の並び。スキャン中の行のハイライト、仮想的な大量行（1 億行を「省略記号＋スクロール」で表現） | `rows`, `highlight`, `scrollProgress` |
-| `BTreeView` | B+木のノードとキー。降下経路のハイライト | `tree`, `path`, `revealDepth` |
-| `Counter` | 比較回数のカウンタ（1 億 vs 数回の対比） | `value`, `label`, `color` |
-| `Arrow` / `Label` | 補助 | |
-| `Subtitles` | 字幕（仕様書 §6） | timing から自動 |
+| `TableView` ＋ `tableGridPos` | 行をマスで表す（大量の行のイメージ） | `cells`（位置・大きさ・色・不透明度） |
+| `BTreeView` ＋ `btreeNodeRect` | B+木の段・ノード・枝。降下経路の強調 | `levels`, `nodeProgress`, `edgeProgress`, `nodeGlow`, `edgeGlow`, `nodeScale` |
+| `SlotArray` ＋ `slotRect` | 番号付きの箱を縦に並べる（ハッシュテーブルのバケット） | `count`, 配置, `appear`, `glow`, `glowColor` |
+| `ArrayRow` ＋ `arrayCellRect` | 値の入った箱を横に並べる（配列・探索範囲） | `values`, 配置, `appear`, `glow`, `glowColor`, `dim` |
+| `Chip` | 文字の入った角丸の札（キー・値・関数の箱） | `text`, 位置, `color`, `outline`, `glow` |
+| `Counter` | 数値と説明 | `value`, `label`, `color` |
+| `Arrow` / `Label` | 補助（線・矢印、図中の文字） | |
+| `Subtitles`（kit 外） | 字幕（仕様書 §6）。`Clip` が共通で描く | timing から自動 |
 
 ### 4.4 TtsProvider
 ```ts
@@ -178,38 +194,39 @@ interface TtsProvider {
 1. beats.yaml と辞書（`factory/dict.yaml` とクリップ固有の `dict.yaml`）を読み、zod で検証する
 2. 各ビートについて「読み上げ文字列＋声の設定」のハッシュを計算する。`audio/.cache` に一致するものがあれば再利用する
 3. VOICEVOX：`POST /audio_query` → 話速などを上書き（`outputSamplingRate: 48000`）→ `POST /synthesis`
-4. wav の長さとモーラの終了時刻を取得し、長い字幕は句読点で分割して表示時刻を割り当てる
+4. wav の長さを取得し、長い字幕は句読点で分割して、文字数に比例した表示時刻を割り当てる（モーラ単位の時刻は使わない）
 5. `startFrame` を累積で計算する（leadIn → 各ビートの音声 + gap → tail）
 6. timing.json を書き出す
 
 ### 5.2 Root / Clip
 - Root が起動時に `clip/*/clip.yaml` を走査し、各クリップの `Scene.tsx` と `timing.json` を読み込んで Composition を登録する。バンドラは実行時にディレクトリを走査できないため、`scripts/gen-clips.ts` が静的 import の一覧 `src/generated/clips.ts` を生成する（手書きの一覧ではない。studio / check / render の前に自動で走る）。このとき clip.yaml の検査（id・category・kit・必須ファイル）も行う
 - `<Composition id="001-db-index" durationInFrames={timing.durationInFrames} …/>`
-- `Clip` = 背景 ＋ `<TimingContext>` ＋ `<Scene/>` ＋ ビートごとの `<Audio/>` ＋ `<Subtitles/>`
+- `Clip` = 背景 ＋ `<TimingContext>` ＋ `<Scene/>` ＋ ビートごとの `<Audio/>` ＋ `<Subtitles/>` ＋ クレジット（仕様書 §7）
 
 ### 5.3 render.ts
-1. check を実行する
-2. `npx remotion render <id> <clip>/out/tmp.mp4`
-3. `ffmpeg -af loudnorm=I=-14:TP=-1:LRA=11`（2 パス）で `<clip>/out/video.mp4` を出力する
+1. check（そのクリップだけ）と gen-clips を実行する
+2. `remotion render src/remotion-entry.ts <id> <clip>/out/raw.mp4 --public-dir=../clip --codec=h264 --crf=18`
+3. `ffmpeg -af loudnorm=I=-14:TP=-1.5:LRA=11`（2 パス、映像は再エンコードしない）で `<clip>/out/video.mp4` を出力する
 
 ## 6. Claude Code 連携
 - `.claude/skills/make-video/SKILL.md`：仕様書 §2 のステップ 0〜9 と、§9 のチェックリストによる自己判定の手順。`--review` 時は Gate1・Gate2 で止まってユーザーに確認する
 - ルート `CLAUDE.md`：地図と境界ルール（契約 §1）／`factory/CLAUDE.md`：常に守る規約
   - 映像実装：秒数の直書き禁止（`useBeat` を使う）、色は theme から取る、一度に動かすものは 1 つ、新しい図解は部品として `factory/src/components/` に足す
   - 調査：出典必須、公式ドキュメント優先、裏取りできない主張は使わない
-  - 自己検証：`npm run stills` の PNG を必ず見てから render する
+  - 自己検証：`pnpm stills` の PNG を必ず見てから render する
 
 ## 7. テスト方針
 | 対象 | 方法 |
 |---|---|
-| タイミング計算・字幕分割・辞書置換 | Vitest のユニットテスト |
-| スキーマ | 不正な beats.yaml を check が検出するか |
+| 型・境界・クリップの構成 | `pnpm check`（check.ts ＋ gen-clips ＋ tsc） |
+| スキーマ | 不正な beats.yaml を check が検出する |
 | 見た目 | 主要ビートの静止画を書き出して目視（将来はスナップショット比較） |
+| タイミング計算・字幕分割・辞書置換 | 将来：ユニットテスト（Vitest など）。現在はテストコードを持たない |
 
 ## 8. 実装フェーズ
 1. **基盤**：開発環境、Remotion 初期化、theme、SafeArea、Subtitles、TTS（VOICEVOX）、check（境界検査を含む）/ render / stills
 2. **001 を手動で通す**：ステップを 1 つずつ実行して 001-db-index を完成させ、部品（TableView, BTreeView, Counter, モーション最小セット）を作る
 3. **自動化**：2 の手順を `/make-video` スキルと CLAUDE.md に書き起こし、同じメモから無人で 001 を再生成できるか確かめる（MVP 完了）
-4. **拡充**：別分野のメモで試して部品を増やす、backlog、AivisSpeech 対応
+4. **拡充**：別分野のメモで試して部品を増やす（002・003 で SlotArray・Chip・ArrayRow を追加）。backlog（要件 F14）と AivisSpeech 対応（F15）は未着手
 
 手順を先に一度手で通すのは、どこで判断が要るかを把握してから手順書に落とすため。
