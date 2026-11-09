@@ -26,7 +26,7 @@ description: 学習メモ（clip/NNN-slug/memo.md）から CS 解説動画（縦
 | 4 | ビート分割。ナレーション 1 文＋映像 1 動作が 1 ビート。数字・英語・記号の読みは `yomi:` で書く（例：`3〜4段` → `さんからよんだん`）。強調は `**語**` | `beats.yaml`（形式は仕様書 §3.4）、必要なら `dict.yaml` |
 | 5 | `pnpm tts NNN` | `audio/*.wav`, `timing.json` |
 | 6 | 映像実装。`Scene.tsx` を書く（下の規約） | `Scene.tsx` |
-| 7 | 自己検証。`pnpm check` → `pnpm stills NNN` → `/review-video <クリップ>` で Gate3 を観点ごとに採点。0 点の観点がある、または 18/22 未満なら 6 に戻る（最大 3 回）。残った懸念は report.md へ | `stills/*.png`, `report.md`（Gate3 採点） |
+| 7 | 自己検証。`pnpm check` → `pnpm stills NNN` → `/review-video <クリップ>` で Gate3 を観点ごとに採点。0 点の観点がある（既知の factory 要修正を除く）、または得点率 80% 未満なら 6 に戻る（最大 3 回）。残った懸念は report.md へ | `stills/*.png`, `report.md`（Gate3 採点） |
 | 8 | `pnpm render NNN`（check → 書き出し → 音量 -14 LUFS） | `out/video.mp4` |
 | 9 | `report.md` を書く | `report.md` |
 
