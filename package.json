@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "CS-Clip root workspace. Scripts here delegate to factory/.",
   "scripts": {
-    "check": "pnpm --filter @cs-clip/kit run check && tsc -p clip/tsconfig.json",
+    "check": "tsc -p clip/tsconfig.json && pnpm --filter @cs-clip/kit run check",
     "studio": "pnpm --filter @cs-clip/kit run studio",
     "voice-samples": "pnpm --filter @cs-clip/kit run voice-samples",
     "tts": "pnpm --filter @cs-clip/kit run tts",
