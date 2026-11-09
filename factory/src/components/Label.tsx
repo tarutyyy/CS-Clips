@@ -1,3 +1,4 @@
+import { clamp01 } from "../geometry";
 import { theme } from "../theme";
 
 export type LabelProps = {
@@ -29,7 +30,7 @@ export const Label = ({
   reveal = 1,
 }: LabelProps) => {
   const chars = Array.from(text);
-  const n = Math.round(chars.length * Math.min(1, Math.max(0, reveal)));
+  const n = Math.round(chars.length * clamp01(reveal));
   return (
     <div
       style={{

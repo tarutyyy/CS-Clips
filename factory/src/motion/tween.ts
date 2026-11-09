@@ -1,3 +1,4 @@
+import { clamp01 } from "../geometry";
 import { easeInOut, type Easing } from "./easing";
 
 export type TweenOptions = {
@@ -14,6 +15,6 @@ export type TweenOptions = {
 export function tween(frame: number, o: TweenOptions): number {
   const { from, to, start, duration, easing = easeInOut } = o;
   if (duration <= 0) return frame >= start ? to : from;
-  const t = Math.min(1, Math.max(0, (frame - start) / duration));
+  const t = clamp01((frame - start) / duration);
   return from + (to - from) * easing(t);
 }

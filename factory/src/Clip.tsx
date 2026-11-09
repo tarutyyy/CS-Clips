@@ -22,10 +22,10 @@ const Credit = () => {
         position: "absolute",
         left: 0,
         right: 0,
-        bottom: 150,
+        bottom: theme.credit.bottom,
         textAlign: "center",
-        fontSize: 32,
-        opacity: opacity * 0.8,
+        fontSize: theme.credit.fontSize,
+        opacity: opacity * theme.credit.opacity,
         color: theme.text,
       }}
     >

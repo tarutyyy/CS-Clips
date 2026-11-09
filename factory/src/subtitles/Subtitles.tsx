@@ -2,10 +2,6 @@ import { useCurrentFrame } from "remotion";
 import { theme } from "../theme";
 import type { Timing } from "../timing/types";
 
-/** 字幕の表示位置：セーフエリアの下（y 1380〜1700）。仕様書 §6 */
-const BOX = { top: 1400, height: 300 } as const;
-const FONT_SIZE = 56;
-
 const PUNCT = /^[、。，．！？!?）」』】〕…ー]+$/;
 
 /** 日本語を単語に区切る。句読点などは直前の語にくっつけ、行頭に来ないようにする。 */
@@ -49,13 +45,13 @@ export const Subtitles = ({ timing }: { timing: Timing }) => {
         position: "absolute",
         left: theme.safe.x,
         width: theme.safe.width,
-        top: BOX.top,
-        height: BOX.height,
+        top: theme.subtitle.top,
+        height: theme.subtitle.height,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         textAlign: "center",
-        fontSize: FONT_SIZE,
+        fontSize: theme.subtitle.fontSize,
         fontWeight: 700,
         lineHeight: 1.4,
         color: theme.text,

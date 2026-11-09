@@ -21,6 +21,12 @@ export const theme = {
 
   /** メイン領域（セーフエリア）。x = 60〜960, y = 240〜1350 */
   safe: { x: 60, y: 240, width: 900, height: 1110 },
+
+  /** 字幕の領域（横はセーフエリアと同じ）。y = 1400〜1700。仕様書 §6 */
+  subtitle: { top: 1400, height: 300, fontSize: 56 },
+
+  /** TTS のクレジット。画面下端からの位置。図中の文字ではないので minFontSize 未満でよい。仕様書 §7 */
+  credit: { bottom: 150, fontSize: 32, opacity: 0.8 },
 } as const;
 
 export type Theme = typeof theme;
