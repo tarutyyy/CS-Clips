@@ -1,36 +1,55 @@
 /**
  * clip/ 配下の各 clip.yaml を走査して factory/src/generated/clips.ts を生成する。
  * 手書きの一覧は持たない（契約書 §3）。生成物は git 管理しない。
+ * クリップはパートの並び（契約書 §2.2）。単一形式のクリップは直下を 1 パートとして登録する。
  * 使い方: node scripts/gen-clips.ts   （factory/ で実行）
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { parse } from "yaml";
-import { factoryDir, listClips, readTiming, validateMeta, type ClipMeta } from "./lib/clip.ts";
+import {
+  factoryDir,
+  listClips,
+  readMeta,
+  readTiming,
+  resolveParts,
+  validateMeta,
+  validateParts,
+  type ClipMeta,
+  type PartRef,
+} from "./lib/clip.ts";
 
 const outDir = path.join(factoryDir, "src/generated");
 
+type FoundPart = { part: PartRef; rel: string; audio: { id: string; file: string }[] };
 const errors: string[] = [];
-const found: { meta: ClipMeta; rel: string; audio: { id: string; file: string }[] }[] = [];
+const found: { meta: ClipMeta; parts: FoundPart[] }[] = [];
 
-for (const { id: name, dir } of listClips()) {
-  const yamlPath = path.join(dir, "clip.yaml");
-  if (!existsSync(yamlPath)) continue;
+for (const clip of listClips()) {
+  const name = clip.id;
+  if (!existsSync(path.join(clip.dir, "clip.yaml"))) continue;
 
-  const meta = (parse(readFileSync(yamlPath, "utf8")) ?? {}) as ClipMeta;
-  for (const e of validateMeta(name, meta)) errors.push(`${name}: ${e}`);
-  for (const f of ["Scene.tsx", "timing.json"]) {
-    if (!existsSync(path.join(dir, f))) errors.push(`${name}: ${f} がありません（tts / 映像実装が未完了）`);
-  }
-  const audio: { id: string; file: string }[] = [];
-  if (existsSync(path.join(dir, "timing.json"))) {
-    for (const b of readTiming(dir).beats) {
-      if (!b.audio) continue;
-      if (!existsSync(path.join(dir, b.audio))) errors.push(`${name}: ${b.audio} がありません（pnpm tts を実行してください）`);
-      else audio.push({ id: b.id, file: b.audio });
+  const meta = readMeta(clip.dir);
+  const metaErrors = [...validateMeta(name, meta as unknown as Record<string, unknown>), ...validateParts(clip.dir, meta)];
+  for (const e of metaErrors) errors.push(`${name}: ${e}`);
+  if (metaErrors.length > 0) continue;
+
+  const parts: FoundPart[] = [];
+  for (const part of resolveParts(clip, meta)) {
+    const where = part.legacy ? name : `${name}/${part.rel}`;
+    for (const f of ["Scene.tsx", "timing.json"]) {
+      if (!existsSync(path.join(part.dir, f))) errors.push(`${where}: ${f} がありません（tts / 映像実装が未完了）`);
     }
+    const audio: { id: string; file: string }[] = [];
+    if (existsSync(path.join(part.dir, "timing.json"))) {
+      for (const b of readTiming(part.dir).beats) {
+        if (!b.audio) continue;
+        if (!existsSync(path.join(part.dir, b.audio))) errors.push(`${where}: ${b.audio} がありません（pnpm tts を実行してください）`);
+        else audio.push({ id: b.id, file: part.rel ? `${part.rel}/${b.audio}` : b.audio });
+      }
+    }
+    parts.push({ part, rel: path.relative(outDir, part.dir).split(path.sep).join("/"), audio });
   }
-  found.push({ meta, rel: path.relative(outDir, dir).split(path.sep).join("/"), audio });
+  found.push({ meta, parts });
 }
 
 if (errors.length > 0) {
@@ -45,26 +64,38 @@ const lines: string[] = [
   "",
 ];
 found.forEach((c, i) => {
-  lines.push(`import Scene${i} from "${c.rel}/Scene";`);
-  lines.push(`import timing${i} from "${c.rel}/timing.json";`);
+  c.parts.forEach((p, j) => {
+    lines.push(`import Scene${i}_${j} from "${p.rel}/Scene";`);
+    lines.push(`import timing${i}_${j} from "${p.rel}/timing.json";`);
+  });
 });
 lines.push(
   "",
-  "export type ClipEntry = {",
-  "  id: string; title: string; category: string; kit: number;",
+  "export type PartEntry = {",
+  "  id: string; role: string;",
   "  Scene: ComponentType; timing: Timing;",
   "  // beat id から音声ファイルへの対応。clip/ からの相対パス（staticFile に渡す）",
   "  audio: Record<string, string>;",
+  "};",
+  "",
+  "export type ClipEntry = {",
+  "  id: string; title: string; category: string; kit: number;",
+  "  // 再生順。単一形式のクリップは 1 パート（main）",
+  "  parts: PartEntry[];",
   "};",
   "",
   "export const clips: ClipEntry[] = [",
 );
 found.forEach((c, i) => {
   const m = c.meta;
-  lines.push(
-    `  { id: ${JSON.stringify(m.id)}, title: ${JSON.stringify(m.title)}, category: ${JSON.stringify(m.category)}, kit: ${m.kit}, Scene: Scene${i}, timing: timing${i} as Timing,`,
-    `    audio: { ${c.audio.map((a, j) => `${JSON.stringify(a.id)}: ${JSON.stringify(`${m.id}/${a.file}`)}`).join(", ")} } },`,
-  );
+  lines.push(`  { id: ${JSON.stringify(m.id)}, title: ${JSON.stringify(m.title)}, category: ${JSON.stringify(m.category)}, kit: ${m.kit}, parts: [`);
+  c.parts.forEach((p, j) => {
+    lines.push(
+      `    { id: ${JSON.stringify(p.part.id)}, role: ${JSON.stringify(p.part.role)}, Scene: Scene${i}_${j}, timing: timing${i}_${j} as Timing,`,
+      `      audio: { ${p.audio.map((a) => `${JSON.stringify(a.id)}: ${JSON.stringify(`${m.id}/${a.file}`)}`).join(", ")} } },`,
+    );
+  });
+  lines.push("  ] },");
 });
 lines.push("];", "");
 

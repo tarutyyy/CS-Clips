@@ -23,11 +23,19 @@ export const segmentJa = (text: string): string[] => {
   return out;
 };
 
-/** 文節の途中では改行しない（文節ごとに inline-block にする） */
+/**
+ * 文節の途中では改行しない（文節ごとに inline-block にする）。
+ * 空白だけの区切り（英語の語間、例: Domain Name System）は inline-block にすると幅 0 に潰れるので、
+ * そのまま文字として置く（そこで折り返してよい）。
+ */
 const words = (text: string, color?: string) =>
-  segmentJa(text).map((w, i) => (
-    <span key={i} style={{ display: "inline-block", color }}>{w}</span>
-  ));
+  segmentJa(text).map((w, i) =>
+    /^\s+$/.test(w) ? (
+      <span key={i} style={{ color }}>{" "}</span>
+    ) : (
+      <span key={i} style={{ display: "inline-block", color }}>{w}</span>
+    ),
+  );
 
 /** `**強調**` を黄色にして描く */
 const renderRich = (text: string) =>

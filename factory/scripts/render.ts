@@ -6,7 +6,7 @@
 import { existsSync, mkdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { checkAndGenerate, cliArgs, clipFromArg, fail, fromRepoRoot, remotionBin, run } from "./lib/cli.ts";
-import { MAX_SECONDS, readTiming } from "./lib/clip.ts";
+import { MAX_TOTAL_SECONDS, clipTimeline, resolveParts } from "./lib/clip.ts";
 import { normalizeLoudness } from "./lib/loudnorm.ts";
 
 const TOOL = "render";
@@ -44,11 +44,11 @@ try {
   fail(TOOL, (e as Error).message);
 }
 
-const timing = readTiming(clip.dir);
-const sec = timing.durationInFrames / timing.fps;
+const timeline = clipTimeline(resolveParts(clip));
+const sec = timeline.durationInFrames / timeline.fps;
 const mb = statSync(final).size / 1024 / 1024;
 console.log(
   `\nrender: ${clip.id} → ${fromRepoRoot(final)}\n` +
     `  ${sec.toFixed(1)} 秒 / ${mb.toFixed(1)} MB / 音量 ${loud.before.toFixed(1)} → ${loud.after} LUFS`,
 );
-if (sec > MAX_SECONDS) console.warn(`警告: ${MAX_SECONDS} 秒を超えています`);
+if (sec > MAX_TOTAL_SECONDS) console.warn(`警告: 上限 ${MAX_TOTAL_SECONDS} 秒を超えています`);

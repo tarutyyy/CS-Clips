@@ -1,5 +1,5 @@
 import { Composition } from "remotion";
-import { Clip } from "./Clip";
+import { Clip, clipDuration } from "./Clip";
 import { clips } from "./generated/clips";
 import { theme } from "./theme";
 
@@ -11,8 +11,8 @@ export const Root = () => (
         key={c.id}
         id={c.id}
         component={Clip}
-        durationInFrames={c.timing.durationInFrames}
-        fps={c.timing.fps}
+        durationInFrames={clipDuration(c.parts)}
+        fps={c.parts[0].timing.fps}
         width={theme.width}
         height={theme.height}
         defaultProps={{ clipId: c.id }}

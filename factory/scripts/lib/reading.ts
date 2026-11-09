@@ -1,3 +1,5 @@
+import { stripFullNames } from "./notation.ts";
+
 export type Dict = Record<string, string>;
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -12,8 +14,8 @@ function applyDict(text: string, dict: Dict): string {
 
 /**
  * 読み上げ文字列を作る。
- * yomi があればそれを使う。なければ text に辞書を適用する（クリップ固有が共通より優先）。
- * 強調記号 ** は常に取り除く。
+ * yomi があればそれを使う。なければ text から略語の正式名称の括弧を除き（仕様書 §3.9）、
+ * 辞書を適用する（クリップ固有が共通より優先）。強調記号 ** は常に取り除く。
  */
 export function buildReading(
   beat: { text: string; yomi?: string },
@@ -22,5 +24,5 @@ export function buildReading(
 ): string {
   const strip = (s: string) => s.replace(/\*\*/g, "");
   if (beat.yomi) return strip(beat.yomi);
-  return applyDict(strip(beat.text), { ...common, ...clipDict });
+  return applyDict(strip(stripFullNames(beat.text)), { ...common, ...clipDict });
 }

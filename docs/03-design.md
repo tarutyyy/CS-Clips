@@ -43,7 +43,7 @@ VOICEVOX と AivisSpeech はほぼ同じ HTTP API（`/audio_query` → `/synthes
 現在の実装は VOICEVOX（`lib/tts/voicevox.ts`）だけ。AivisSpeech（`aivis.ts`）は将来対応で、beats.yaml に `provider: aivis` を書くと tts は「未実装」でエラーにする。
 
 ### D4. オブジェクトの連続性
-場面をカットせず、同じオブジェクトの変形・移動で次の状態へつなぐ。1 クリップ＝1 つの連続キャンバス。
+場面をカットせず、同じオブジェクトの変形・移動で次の状態へつなぐ。1 パート＝1 つの連続キャンバス（D13）。パートの間だけは短いフェードで切り替える。
 
 ### D5. 状態はフレームの純関数
 アニメーションの状態は `frame → 見た目` の純関数で計算する（Remotion の原則）。
@@ -78,6 +78,20 @@ VOICEVOX と AivisSpeech はほぼ同じ HTTP API（`/audio_query` → `/synthes
 ### D12. 動画の版とシステムの版を分ける
 システムの版（1.0.0）はルート `package.json` の `version` と git タグ `v1.0.0` で表し、変更点は `CHANGELOG.md` に書く。クリップとの契約の版は `factory/package.json` の `cs-clip.kitVersion`（現在 1）で、公開 API の削除・意味の変更でだけ上げる。
 
+### D13. クリップをパートに分ける
+クリップは役割（前提 intro・本編 main・まとめ outro、総集編のつなぎ bridge）を持つパートの並び。パートごとに `beats.yaml`・`Scene.tsx`・`timing.json`・`audio/` を持ち、タイミングはパートの頭を 0 とする。
+- 理由：総集編で本編パートを使い回すため（要件 US7）。本編の台本・音声・映像が前後に依存しなければ、総集編は「本編パートの並び＋つなぎパート」をデータで書くだけで作れる
+- `Clip` はパートを `<Sequence>` で順に並べ、パートごとに `TimingContext` を差し替える。`<Sequence>` の内側では `useCurrentFrame` がパートの頭からのフレームになるので、`useBeat` は変えずにパートの時刻を返す
+- 継ぎ目は `Clip` が 0.3 秒のフェードで隠す（パートをまたいだ変形はしない。D4 の連続性はパートの中で守る）
+- 旧クリップ（`clip.yaml` に `parts` が無い）は、クリップ直下を 1 パート（main）として扱う。単一パートでは意味が変わらないので kit のメジャーは上げない
+- 総集編の `ref`（別クリップのパートをデータで指す）は契約に予約だけして、実装は後回し
+
+### D14. 分かりやすさは台本の前で設計する
+分かりにくさの原因は「何のための技術かが無い」「情報に強弱が無い」「略語がいきなり出る」の 3 つ（1.0 の 001〜003 の振り返り）。台本を書いてから直すのではなく、前の段で決める。
+- topic.md に「生まれた理由」「ゴール（一文）」「要点の地図（核・支え・捨てる）」を書かせ、台本の文には `[核]` `[支え]` `[つなぎ]` の印を付けさせる。印の無い文・どこにもつながらない文は Gate2 で落とす
+- 機械的に判定できる部分（略語の初出、パートの尺）は check に入れる。判断が要る部分（筋・強弱・単体性）は Gate2 のチェックリストで Claude が自己判定する
+- 尺は 60 秒固定をやめ、パートごとの目安と総尺の上限（180 秒）だけを持つ
+
 ### D7.（将来）日英対応
 beats に `ja` / `en` を持たせ、ビート ID を共通にする。timing は言語ごとに生成する。
 D1 により同じ Scene.tsx が両言語で使える。英語の TTS には Kokoro などのプロバイダを追加する。現時点では実装しない。
@@ -102,7 +116,7 @@ CS-Clip/                          # 親リポジトリ
 │   │   ├── remotion-entry.ts     # Remotion の入口（registerRoot）
 │   │   ├── Root.tsx              # generated/clips.ts から Composition を登録
 │   │   ├── generated/clips.ts    # gen-clips.ts が生成（git 管理しない）
-│   │   ├── Clip.tsx              # 共通の枠：背景・Scene・音声・字幕・クレジット
+│   │   ├── Clip.tsx              # 共通の枠：背景・パートの並び（Scene・音声・字幕）・継ぎ目のフェード・クレジット
 │   │   ├── theme.ts              # 色・フォント・レイアウト定数（字幕・クレジットの位置を含む）
 │   │   ├── geometry.ts           # Point / Rect 型
 │   │   ├── timing/               # TimingContext.tsx, useBeat.ts, types.ts（timing.json の型）
@@ -114,7 +128,8 @@ CS-Clip/                          # 親リポジトリ
 │       ├── gen-clips.ts          # clip/*/clip.yaml を走査して generated/clips.ts を作る
 │       ├── tts.ts  check.ts  render.ts  stills.ts  voice-samples.ts
 │       └── lib/
-│           ├── clip.ts           # クリップの解決・走査、clip.yaml の検査、sourceHash
+│           ├── clip.ts           # クリップの解決・走査、clip.yaml の検査、パートの解決、sourceHash
+│           ├── notation.ts       # 略語の初出の検査、読み上げから正式名称の括弧を除く
 │           ├── cli.ts            # コマンド共通（引数・エラー終了・子プロセス）
 │           ├── schema.ts         # beats.yaml の zod スキーマ
 │           ├── reading.ts        # 読み辞書の適用
@@ -124,14 +139,17 @@ CS-Clip/                          # 親リポジトリ
 │           └── tts/{provider,voicevox}.ts  # aivis.ts は将来
 └── clip/                         # 成果物。データ中心
     ├── README.md
-    └── 001-db-index/
-        ├── clip.yaml
-        ├── memo.md topic.md research.md script.md beats.yaml report.md
-        ├── dict.yaml             # 任意：クリップ固有の読み
-        ├── Scene.tsx             # import は @cs-clip/kit のみ
-        ├── timing.json audio/    # 自動生成（git 管理する）
-        ├── stills/               # 自己検証用の静止画（git 管理しない）
-        └── out/video.mp4         # 書き出し結果（git 管理しない）
+    ├── 005-xxx/                  # パート形式（D13）
+    │   ├── clip.yaml             # parts: intro / main / outro
+    │   ├── memo.md topic.md research.md script.md report.md
+    │   ├── dict.yaml             # 任意：クリップ固有の読み（全パート共通）
+    │   ├── parts/
+    │   │   ├── intro/ beats.yaml Scene.tsx timing.json audio/
+    │   │   ├── main/  beats.yaml Scene.tsx timing.json audio/
+    │   │   └── outro/ beats.yaml Scene.tsx timing.json audio/
+    │   ├── stills/               # 自己検証用の静止画（git 管理しない）
+    │   └── out/video.mp4         # 書き出し結果（git 管理しない）
+    └── 001-db-index/             # 単一形式（旧）：直下の beats.yaml / Scene.tsx / timing.json / audio/ が 1 パート
 ```
 - `factory/` 以下の `src/`・`scripts/` を、以降の節では単に `src/`・`scripts/` と書く
 - 依存の向きと境界の検査は D10 と 04 契約書に従う
@@ -141,7 +159,7 @@ CS-Clip/                          # 親リポジトリ
 ### 4.1 タイミング
 ```ts
 type BeatTiming = { id: string; startFrame: number; endFrame: number; audioFrames: number;
-                    audio?: string; subtitles?: Subtitle[] };   // timing.json の 1 ビート（src/timing/types.ts）
+                    audio?: string; subtitles?: Subtitle[] };   // timing.json の 1 ビート（src/timing/types.ts）。フレームはパートの頭から
 
 // Scene 内で使う
 const b = useBeat("scan");
@@ -192,17 +210,19 @@ interface TtsProvider {
 ## 5. 処理フロー
 
 ### 5.1 tts.ts
+パートごとに以下を行う（引数でパートを 1 つに絞れる）。
 1. beats.yaml と辞書（`factory/dict.yaml` とクリップ固有の `dict.yaml`）を読み、zod で検証する
-2. 各ビートについて「読み上げ文字列＋声の設定」のハッシュを計算する。`audio/.cache` に一致するものがあれば再利用する
-3. VOICEVOX：`POST /audio_query` → 話速などを上書き（`outputSamplingRate: 48000`）→ `POST /synthesis`
-4. wav の長さを取得し、長い字幕は句読点で分割して、文字数に比例した表示時刻を割り当てる（モーラ単位の時刻は使わない）
-5. `startFrame` を累積で計算する（leadIn → 各ビートの音声 + gap → tail）
-6. timing.json を書き出す
+2. 読み上げ文字列を作る（yomi か、辞書の適用と略語の正式名称の括弧の除去。仕様書 §3.5）
+3. 各ビートについて「読み上げ文字列＋声の設定」のハッシュを計算する。`audio/.cache` に一致するものがあれば再利用する
+4. VOICEVOX：`POST /audio_query` → 話速などを上書き（`outputSamplingRate: 48000`）→ `POST /synthesis`
+5. wav の長さを取得し、長い字幕は句読点で分割して、文字数に比例した表示時刻を割り当てる（モーラ単位の時刻は使わない）
+6. `startFrame` を累積で計算する（leadIn → 各ビートの音声 + gap → tail）
+7. パートの timing.json を書き出す。最後に全パートの総尺を表示し、上限を超えたら警告する
 
 ### 5.2 Root / Clip
-- Root が起動時に `clip/*/clip.yaml` を走査し、各クリップの `Scene.tsx` と `timing.json` を読み込んで Composition を登録する。バンドラは実行時にディレクトリを走査できないため、`scripts/gen-clips.ts` が静的 import の一覧 `src/generated/clips.ts` を生成する（手書きの一覧ではない。studio / check / render の前に自動で走る）。このとき clip.yaml の検査（id・category・kit・必須ファイル）も行う
-- `<Composition id="001-db-index" durationInFrames={timing.durationInFrames} …/>`
-- `Clip` = 背景 ＋ `<TimingContext>` ＋ `<Scene/>` ＋ ビートごとの `<Audio/>` ＋ `<Subtitles/>` ＋ クレジット（仕様書 §7）
+- Root が起動時に `clip/*/clip.yaml` を走査し、各クリップのパートごとの `Scene.tsx` と `timing.json` を読み込んで Composition を登録する。バンドラは実行時にディレクトリを走査できないため、`scripts/gen-clips.ts` が静的 import の一覧 `src/generated/clips.ts` を生成する（手書きの一覧ではない。studio / check / render の前に自動で走る）。このとき clip.yaml の検査（id・category・kit・必須ファイル）も行う
+- `<Composition id="005-xxx" durationInFrames={全パートの durationInFrames の合計} …/>`
+- `Clip` = 背景 ＋ パートごとの `<Sequence from={パートの開始}>`（その中に `<TimingContext>` ＋ `<Scene/>` ＋ `<Subtitles/>` ＋ ビートごとの `<Audio/>`、継ぎ目のフェード）＋ クレジット（仕様書 §7）
 
 ### 5.3 render.ts
 1. check（そのクリップだけ）と gen-clips を実行する

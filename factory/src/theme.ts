@@ -28,6 +28,9 @@ export const theme = {
    */
   subtitle: { x: 60, width: 840, top: 1390, height: 146, fontSize: 56, lineHeight: 1.3 },
 
+  /** パートの継ぎ目のフェード（秒）。前のパートの最後と次のパートの最初にかける。仕様書 §7 */
+  partFadeSeconds: 0.3,
+
   /** TTS のクレジット。画面下端からの位置。図中の文字ではないので minFontSize 未満でよい。仕様書 §7 */
   credit: { bottom: 150, fontSize: 32, opacity: 0.8 },
 } as const;
