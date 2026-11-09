@@ -26,7 +26,7 @@
 | 画面 | 1080×1920 縦型, 30fps |
 | 見た目 | 3Blue1Brown 風：暗い背景・図解のみ・滑らかな変形。キャラクターは出さない |
 | 言語 | 日本語のみ（英語版は将来、別チャンネル） |
-| 音声 | VOICEVOX または AivisSpeech（切り替え可能） |
+| 音声 | VOICEVOX。AivisSpeech への切り替え（F15）は将来対応 |
 | 字幕 | 必須（無音視聴対策） |
 | 入力 | 自分の学習メモ（Markdown） |
 | 出力 | MP4 ファイル。投稿は手動で、システムの範囲外 |
@@ -72,7 +72,7 @@
 
 ## 7. 制約・前提
 - 実行環境：Arch Linux、Node.js 22（Nix flake で固定。`.ts` を直接実行できる型除去を使う）、ffmpeg、Docker、Nix（direnv）
-- 現状 npm が未導入 → Nix flake + direnv で用意する（決定済み Q1）
+- 現状 Node.js / pnpm が未導入 → Nix flake + direnv で用意する（決定済み Q1）
 - VOICEVOX Engine は Docker（`factory/docker-compose.yml`）で起動する（決定済み Q2）
 - Remotion は個人利用なら無料ライセンスで利用可能
 

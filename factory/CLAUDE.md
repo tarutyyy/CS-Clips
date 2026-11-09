@@ -20,4 +20,4 @@
 - 裏取りできない主張は台本に使わない。
 
 ## 自己検証
-- render の前に `npm run stills -- NNN` の PNG を必ず見て、仕様書 §9 の Gate3 で判定する。
+- render の前に `pnpm stills NNN` の PNG を必ず見て、仕様書 §9 の Gate3 で判定する。

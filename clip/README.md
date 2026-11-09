@@ -15,5 +15,5 @@
 | `memo.md` | あなたが書く |
 | `topic.md` `research.md` `script.md` `beats.yaml` `report.md` | Claude が生成 |
 | `Scene.tsx` | Claude が生成（唯一のコード。`@cs-clip/kit` だけを import） |
-| `timing.json` `audio/` | `npm run tts` が自動生成（git 管理する） |
+| `timing.json` `audio/` | `pnpm tts` が自動生成（git 管理する） |
 | `out/` `stills/` | 生成物（git 管理しない） |
