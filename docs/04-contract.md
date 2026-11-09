@@ -53,7 +53,7 @@ kit: 1                    # 対応する @cs-clip/kit のメジャーバージ�
 |---|---|
 | タイミング | `useBeat`, `TimingContext` |
 | モーション | `tween`, `Create`, `Write`, `FadeIn`, `FadeOut`, `Indicate`, `useMorph` |
-| 部品 | `TableView`, `BTreeView`, `SlotArray`, `Chip`, `Counter`, `Arrow`, `Label` ほか、追加された図解部品 |
+| 部品 | `TableView`, `BTreeView`, `SlotArray`, `ArrayRow`, `Chip`, `Counter`, `Arrow`, `Label` ほか、追加された図解部品 |
 | 枠 | `theme`, `SafeArea` |
 
 - `Scene.tsx` は上記を `import { … } from "@cs-clip/kit"` で使う。それ以外の import は React と、クリップ内のファイルのみ

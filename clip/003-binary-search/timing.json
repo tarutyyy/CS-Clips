@@ -1,0 +1,139 @@
+{
+  "fps": 30,
+  "durationInFrames": 1567,
+  "sourceHash": "9f51652f33d999174b853014515fa4f382b6504e750b4b0cc28027f186319037",
+  "beats": [
+    {
+      "id": "hook",
+      "startFrame": 9,
+      "audioFrames": 199,
+      "endFrame": 217,
+      "audio": "audio/hook.wav",
+      "subtitles": [
+        {
+          "text": "100万個の数から、1つを探す。たった20回比べるだけで",
+          "startFrame": 9,
+          "endFrame": 160
+        },
+        {
+          "text": "見つかるとしたら？",
+          "startFrame": 160,
+          "endFrame": 217
+        }
+      ]
+    },
+    {
+      "id": "linear",
+      "startFrame": 217,
+      "audioFrames": 225,
+      "endFrame": 451,
+      "audio": "audio/linear.wav",
+      "subtitles": [
+        {
+          "text": "先頭から順に見ると、1回で減る候補は1つだけ。100万個なら",
+          "startFrame": 217,
+          "endFrame": 390
+        },
+        {
+          "text": "最悪100万回です",
+          "startFrame": 390,
+          "endFrame": 451
+        }
+      ]
+    },
+    {
+      "id": "mid",
+      "startFrame": 451,
+      "audioFrames": 180,
+      "endFrame": 640,
+      "audio": "audio/mid.wav",
+      "subtitles": [
+        {
+          "text": "二分探索は、まず真ん中と比べます。37は30より大きい",
+          "startFrame": 451,
+          "endFrame": 640
+        }
+      ]
+    },
+    {
+      "id": "discard",
+      "startFrame": 640,
+      "audioFrames": 147,
+      "endFrame": 796,
+      "audio": "audio/discard.wav",
+      "subtitles": [
+        {
+          "text": "だから、左半分には絶対にありません。まとめて捨てられます",
+          "startFrame": 640,
+          "endFrame": 796
+        }
+      ]
+    },
+    {
+      "id": "half",
+      "startFrame": 796,
+      "audioFrames": 90,
+      "endFrame": 904,
+      "audio": "audio/half.wav",
+      "subtitles": [
+        {
+          "text": "残りの真ん中と比べて、また半分",
+          "startFrame": 796,
+          "endFrame": 904
+        }
+      ]
+    },
+    {
+      "id": "found",
+      "startFrame": 904,
+      "audioFrames": 127,
+      "endFrame": 1046,
+      "audio": "audio/found.wav",
+      "subtitles": [
+        {
+          "text": "これを繰り返すと、15個なら4回で見つかります",
+          "startFrame": 904,
+          "endFrame": 1046
+        }
+      ]
+    },
+    {
+      "id": "sorted",
+      "startFrame": 1046,
+      "audioFrames": 231,
+      "endFrame": 1286,
+      "audio": "audio/sorted.wav",
+      "subtitles": [
+        {
+          "text": "ただし、**小さい順に並んでいること**が前提です。並んでいないと",
+          "startFrame": 1046,
+          "endFrame": 1189
+        },
+        {
+          "text": "どちらを捨てればいいか決められません",
+          "startFrame": 1189,
+          "endFrame": 1286
+        }
+      ]
+    },
+    {
+      "id": "payoff",
+      "startFrame": 1286,
+      "audioFrames": 242,
+      "endFrame": 1537,
+      "audio": "audio/payoff.wav",
+      "subtitles": [
+        {
+          "text": "**1回で半分**になるから、100万個でも、20回ほど",
+          "startFrame": 1286,
+          "endFrame": 1412
+        },
+        {
+          "text": "データが倍になっても、増えるのは1回だけです",
+          "startFrame": 1412,
+          "endFrame": 1537
+        }
+      ]
+    }
+  ]
+}

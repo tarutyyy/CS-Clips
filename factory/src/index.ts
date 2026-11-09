@@ -33,6 +33,8 @@ export { BTreeView, btreeNodeRect } from "./components/BTreeView";
 export type { BTreeLevel } from "./components/BTreeView";
 export { SlotArray, slotRect } from "./components/SlotArray";
 export type { SlotLayout } from "./components/SlotArray";
+export { ArrayRow, arrayCellRect } from "./components/ArrayRow";
+export type { ArrayRowLayout } from "./components/ArrayRow";
 export { Chip } from "./components/Chip";
 export type { Point, Rect } from "./geometry";
 

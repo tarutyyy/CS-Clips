@@ -41,7 +41,7 @@ description: 学習メモ（clip/NNN-slug/memo.md）から CS 解説動画（縦
 - アニメーションは `frame → 見た目` の純関数。`useState` / `setTimeout` は使わない
 - 場面を切らず、同じ物の変形（`useMorph`）で次の状態へつなぐ。一度に動かすのは 1 つ
 - 新しい図解・動きが要るときは `Scene.tsx` に書かず、`factory/src/components/` か `factory/src/motion/` に部品として足し、`factory/src/index.ts` で公開する。先に `docs/04-contract.md` §4 を直す
-- 使える部品：`useBeat` `tween` `useMorph` `FadeIn` `FadeOut` `Create` `Write` `Indicate` `pulse` `Counter` `Label` `Arrow` `TableView` `tableGridPos` `BTreeView` `btreeNodeRect` `SlotArray` `slotRect` `Chip` `SafeArea` `theme`
+- 使える部品：`useBeat` `tween` `useMorph` `FadeIn` `FadeOut` `Create` `Write` `Indicate` `pulse` `Counter` `Label` `Arrow` `TableView` `tableGridPos` `BTreeView` `btreeNodeRect` `SlotArray` `slotRect` `ArrayRow` `arrayCellRect` `Chip` `SafeArea` `theme`
 
 ## 自己検証（ステップ 7）
 - `pnpm stills NNN` は各ビートの始まり直後・中ほど・終わり直前を書き出す。`pnpm stills NNN 30,90` でフレームを指定できる
