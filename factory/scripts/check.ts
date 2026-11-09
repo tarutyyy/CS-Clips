@@ -19,7 +19,9 @@ import {
   validateMeta,
   type ClipRef,
 } from "./lib/clip.ts";
+import { auditStillsDir, creditFrom } from "./lib/audit.ts";
 import { beatsFileSchema } from "./lib/schema.ts";
+import { theme } from "../src/theme.ts";
 
 const MACHINE_FILES = ["clip.yaml", "beats.yaml", "Scene.tsx", "timing.json"];
 const DOC_FILES = ["memo.md", "topic.md", "research.md", "script.md", "report.md"];
@@ -145,6 +147,17 @@ function checkClip(id: string, dir: string): Report {
       }
     }
   }
+
+  // --- 最小文字サイズ（§7）。Scene.tsx に直書きされた fontSize の数値を調べる
+  if (has("Scene.tsx")) {
+    const scene = readFileSync(path.join(dir, "Scene.tsx"), "utf8");
+    for (const m of scene.matchAll(/\bfontSize\s*(?::|=)\s*\{?\s*(\d+)\b/g)) {
+      if (Number(m[1]) < theme.minFontSize) err(`Scene.tsx: fontSize ${m[1]} は最小 ${theme.minFontSize}px 未満です`);
+    }
+  }
+
+  // --- stills の実測（§7.2, §7.3）。stills があるときだけ。古い可能性があるので警告は参考値
+  for (const f of auditStillsDir(path.join(dir, "stills"), creditFrom(readTiming(dir)))) (f.level === "error" ? err : warn)(`stills/${f.still}: ${f.message}`);
   return r;
 }
 

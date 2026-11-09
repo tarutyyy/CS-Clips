@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 字幕（動画の見た目が変わる）
+- 字幕枠を下部 UI・右端ボタン列に被らない位置へ（x60〜900, y1390〜1536）。1 行 14 字・1 枚 28 字に変更し、001〜003 の `timing.json` を作り直した
+- 折り返しを文節単位に：助詞・助動詞・句読点を直前の語に結合（「3番の／箱を見るだけ」）
+- 実測チェックを追加：`pnpm stills` と `pnpm check` が stills の PNG から、危険域（上端・下部 UI は error、右端ボタン列は warn）・図の重心と余白の偏り（warn）を測り、Scene.tsx の 40px 未満の fontSize を error にする
+- 公開 API の変更なし（`theme.subtitle` にフィールド追加のみ。`kitVersion` は 1 のまま）
+
 ### 修正
 - `pnpm check 001` がクリップ番号を tsc に渡して失敗していたのを直した（gen-clips → tsc → check.ts の順に実行する）
 

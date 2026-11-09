@@ -30,13 +30,13 @@
       "audio": "audio/array.wav",
       "subtitles": [
         {
-          "text": "配列なら、番号さえ分かれば、その箱に直接行けます。3番なら",
+          "text": "配列なら、番号さえ分かれば、その箱に直接行けます",
           "startFrame": 192,
-          "endFrame": 368
+          "endFrame": 337
         },
         {
-          "text": "3番を見るだけ",
-          "startFrame": 368,
+          "text": "3番なら、3番を見るだけ",
+          "startFrame": 337,
           "endFrame": 419
         }
       ]
@@ -49,13 +49,13 @@
       "audio": "audio/hashfn.wav",
       "subtitles": [
         {
-          "text": "でも、探したいのは、appleのような文字列です。そこで",
+          "text": "でも、探したいのは、appleのような文字列です",
           "startFrame": 419,
-          "endFrame": 561
+          "endFrame": 541
         },
         {
-          "text": "ハッシュ関数で、キーを番号に変えます",
-          "startFrame": 561,
+          "text": "そこで、ハッシュ関数で、キーを番号に変えます",
+          "startFrame": 541,
           "endFrame": 662
         }
       ]
@@ -82,13 +82,13 @@
       "audio": "audio/lookup.wav",
       "subtitles": [
         {
-          "text": "探すときも、同じ計算で、3番の箱を見るだけ。件数が増えても",
+          "text": "探すときも、同じ計算で、3番の箱を見るだけ",
           "startFrame": 778,
-          "endFrame": 950
+          "endFrame": 902
         },
         {
-          "text": "手間はほぼ同じです",
-          "startFrame": 950,
+          "text": "件数が増えても、手間はほぼ同じです",
+          "startFrame": 902,
           "endFrame": 1012
         }
       ]

@@ -119,6 +119,7 @@ CS-Clip/                          # 親リポジトリ
 │           ├── schema.ts         # beats.yaml の zod スキーマ
 │           ├── reading.ts        # 読み辞書の適用
 │           ├── subtitles.ts  timeline.ts   # 字幕の分割、フレームの割り当て
+│           ├── png.ts  audit.ts   # stills の PNG 読み取りと実測チェック（§7.2, §7.3）
 │           ├── wav.ts  loudnorm.ts
 │           └── tts/{provider,voicevox}.ts  # aivis.ts は将来
 └── clip/                         # 成果物。データ中心

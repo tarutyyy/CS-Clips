@@ -11,13 +11,13 @@
       "audio": "audio/hook.wav",
       "subtitles": [
         {
-          "text": "100万個の数から、1つを探す。たった20回比べるだけで",
+          "text": "100万個の数から、1つを探す",
           "startFrame": 9,
-          "endFrame": 160
+          "endFrame": 90
         },
         {
-          "text": "見つかるとしたら？",
-          "startFrame": 160,
+          "text": "たった20回比べるだけで、見つかるとしたら？",
+          "startFrame": 90,
           "endFrame": 217
         }
       ]
@@ -30,13 +30,13 @@
       "audio": "audio/linear.wav",
       "subtitles": [
         {
-          "text": "先頭から順に見ると、1回で減る候補は1つだけ。100万個なら",
+          "text": "先頭から順に見ると、1回で減る候補は1つだけ",
           "startFrame": 217,
-          "endFrame": 390
+          "endFrame": 344
         },
         {
-          "text": "最悪100万回です",
-          "startFrame": 390,
+          "text": "100万個なら、最悪100万回です",
+          "startFrame": 344,
           "endFrame": 451
         }
       ]
@@ -63,8 +63,13 @@
       "audio": "audio/discard.wav",
       "subtitles": [
         {
-          "text": "だから、左半分には絶対にありません。まとめて捨てられます",
+          "text": "だから、左半分には絶対にありません",
           "startFrame": 640,
+          "endFrame": 733
+        },
+        {
+          "text": "まとめて捨てられます",
+          "startFrame": 733,
           "endFrame": 796
         }
       ]
@@ -105,13 +110,13 @@
       "audio": "audio/sorted.wav",
       "subtitles": [
         {
-          "text": "ただし、**小さい順に並んでいること**が前提です。並んでいないと",
+          "text": "ただし、**小さい順に並んでいること**が前提です",
           "startFrame": 1046,
-          "endFrame": 1189
+          "endFrame": 1149
         },
         {
-          "text": "どちらを捨てればいいか決められません",
-          "startFrame": 1189,
+          "text": "並んでいないと、どちらを捨てればいいか決められません",
+          "startFrame": 1149,
           "endFrame": 1286
         }
       ]
