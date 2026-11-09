@@ -3,7 +3,6 @@
  * 使い方: pnpm tts 001   または   pnpm tts ../clip/001-db-index   （factory/ で実行）
  * 読み書きするのは、指定したクリップのディレクトリと factory/dict.yaml だけ。
  */
-import { createHash } from "node:crypto";
 import {
   copyFileSync,
   existsSync,
@@ -15,57 +14,40 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
-import { factoryDir, resolveClip } from "./lib/clip.ts";
+import { theme } from "../src/theme.ts";
+import { cliArgs, clipFromArg, fail } from "./lib/cli.ts";
+import { MAX_SECONDS, readSources, sha256, sourceHash } from "./lib/clip.ts";
 import { buildReading, type Dict } from "./lib/reading.ts";
 import { beatsFileSchema } from "./lib/schema.ts";
 import { buildTimeline, type BeatInput } from "./lib/timeline.ts";
-import { createVoicevox } from "./lib/tts/voicevox.ts";
+import { VOICEVOX_URL, createVoicevox } from "./lib/tts/voicevox.ts";
 import type { TtsProvider } from "./lib/tts/provider.ts";
 import { wavDurationSec } from "./lib/wav.ts";
 
-const FPS = 30;
-const sha256 = (s: string | Buffer) => createHash("sha256").update(s).digest("hex");
-const readIfExists = (p: string) => (existsSync(p) ? readFileSync(p, "utf8") : "");
+const TOOL = "tts";
 const loadDict = (text: string): Dict => (text ? ((parse(text) as Dict | null) ?? {}) : {});
 
-function fail(msg: string): never {
-  console.error(`tts: ${msg}`);
-  process.exit(1);
-}
+const clip = clipFromArg(TOOL, cliArgs()[0]);
 
-const arg = process.argv.slice(2).filter((a) => a !== "--")[0];
-if (!arg) fail("クリップを指定してください（例: pnpm tts 001）");
-
-const clip = (() => {
-  try {
-    return resolveClip(arg);
-  } catch (e) {
-    return fail((e as Error).message);
-  }
-})();
-
-const beatsPath = path.join(clip.dir, "beats.yaml");
-if (!existsSync(beatsPath)) fail(`${clip.id}/beats.yaml がありません`);
-const beatsRaw = readFileSync(beatsPath, "utf8");
-const parsed = beatsFileSchema.safeParse(parse(beatsRaw));
+if (!existsSync(path.join(clip.dir, "beats.yaml"))) fail(TOOL, `${clip.id}/beats.yaml がありません`);
+const sources = readSources(clip.dir);
+const parsed = beatsFileSchema.safeParse(parse(sources.beats));
 if (!parsed.success) {
   fail(
+    TOOL,
     `beats.yaml が不正です\n` +
       parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n"),
   );
 }
 const file = parsed.data;
 
-const commonRaw = readIfExists(path.join(factoryDir, "dict.yaml"));
-const clipRaw = readIfExists(path.join(clip.dir, "dict.yaml"));
-const commonDict = loadDict(commonRaw);
-const clipDict = loadDict(clipRaw);
+const commonDict = loadDict(sources.commonDict);
+const clipDict = loadDict(sources.clipDict);
 
-const engineUrl = process.env.VOICEVOX_URL ?? "http://localhost:50021";
 const provider: TtsProvider =
   file.voice.provider === "voicevox"
-    ? createVoicevox(engineUrl)
-    : fail(`provider "${file.voice.provider}" は未実装です`);
+    ? createVoicevox(VOICEVOX_URL)
+    : fail(TOOL, `provider "${file.voice.provider}" は未実装です`);
 
 const audioDir = path.join(clip.dir, "audio");
 const cacheDir = path.join(audioDir, ".cache");
@@ -115,18 +97,18 @@ for (const f of readdirSync(audioDir)) {
 }
 
 const timeline = buildTimeline(inputs, {
-  fps: FPS,
+  fps: theme.fps,
   leadIn: file.timing.leadIn,
   tail: file.timing.tail,
 });
 const timing = {
   fps: timeline.fps,
   durationInFrames: timeline.durationInFrames,
-  sourceHash: sha256(beatsRaw + "\n--\n" + commonRaw + "\n--\n" + clipRaw),
+  sourceHash: sourceHash(sources),
   beats: timeline.beats,
 };
 writeFileSync(path.join(clip.dir, "timing.json"), JSON.stringify(timing, null, 2) + "\n");
 
-const sec = timing.durationInFrames / FPS;
+const sec = timing.durationInFrames / timing.fps;
 console.log(`\ntts: ${clip.id} 総尺 ${sec.toFixed(1)} 秒（${timing.durationInFrames} フレーム）`);
-if (sec > 60) console.warn("警告: 60 秒を超えています");
+if (sec > MAX_SECONDS) console.warn(`警告: ${MAX_SECONDS} 秒を超えています`);

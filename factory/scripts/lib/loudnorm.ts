@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 
-export const TARGET = { i: -14, tp: -1.5, lra: 11 };
+const TARGET = { i: -14, tp: -1.5, lra: 11 };
 
 type Measured = {
   input_i: string;

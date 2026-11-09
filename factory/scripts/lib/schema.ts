@@ -49,6 +49,4 @@ export const beatsFileSchema = z
     });
   });
 
-export type BeatsFile = z.infer<typeof beatsFileSchema>;
-export type BeatSpec = BeatsFile["beats"][number];
 export type VoiceConfig = z.infer<typeof voiceSchema>;

@@ -1,5 +1,8 @@
 import type { TtsProvider } from "./provider.ts";
 
+/** VOICEVOX Engine の URL。環境変数 VOICEVOX_URL で変えられる。 */
+export const VOICEVOX_URL = process.env.VOICEVOX_URL ?? "http://localhost:50021";
+
 export function createVoicevox(baseUrl: string): TtsProvider {
   const post = async (url: string, init?: RequestInit) => {
     let res: Response;

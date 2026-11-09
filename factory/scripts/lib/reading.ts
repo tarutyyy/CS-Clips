@@ -3,7 +3,7 @@ export type Dict = Record<string, string>;
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** 長い語から順に、1 回の走査で置換する（置換結果は再度置換されない）。 */
-export function applyDict(text: string, dict: Dict): string {
+function applyDict(text: string, dict: Dict): string {
   const keys = Object.keys(dict).sort((a, b) => b.length - a.length);
   if (keys.length === 0) return text;
   const re = new RegExp(keys.map(escapeRe).join("|"), "g");

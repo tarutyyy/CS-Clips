@@ -3,44 +3,28 @@
  * 手書きの一覧は持たない（契約書 §3）。生成物は git 管理しない。
  * 使い方: node scripts/gen-clips.ts   （factory/ で実行）
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
+import { factoryDir, listClips, readTiming, validateMeta, type ClipMeta } from "./lib/clip.ts";
 
-const CATEGORIES = ["algo", "os", "network", "db", "web"];
-const DIR_RE = /^\d{3}-[a-z0-9-]+$/;
-
-const here = path.dirname(fileURLToPath(import.meta.url));
-const factoryDir = path.resolve(here, "..");
-const clipRoot = path.resolve(factoryDir, "../clip");
 const outDir = path.join(factoryDir, "src/generated");
 
-const pkg = JSON.parse(readFileSync(path.join(factoryDir, "package.json"), "utf8"));
-const kitVersion: number = pkg["cs-clip"].kitVersion;
-
-type Meta = { id: string; title: string; category: string; kit: number };
 const errors: string[] = [];
-const found: { meta: Meta; rel: string; audio: { id: string; file: string }[] }[] = [];
+const found: { meta: ClipMeta; rel: string; audio: { id: string; file: string }[] }[] = [];
 
-for (const name of readdirSync(clipRoot).sort()) {
-  const dir = path.join(clipRoot, name);
+for (const { id: name, dir } of listClips()) {
   const yamlPath = path.join(dir, "clip.yaml");
-  if (!DIR_RE.test(name) || !existsSync(yamlPath)) continue;
+  if (!existsSync(yamlPath)) continue;
 
-  const meta = parse(readFileSync(yamlPath, "utf8")) as Meta;
-  if (meta.id !== name) errors.push(`${name}: clip.yaml の id (${meta.id}) がディレクトリ名と違います`);
-  if (!meta.title) errors.push(`${name}: title がありません`);
-  if (!CATEGORIES.includes(meta.category)) errors.push(`${name}: category が不正です (${meta.category})`);
-  if (meta.kit !== kitVersion) errors.push(`${name}: kit=${meta.kit} は factory の kitVersion=${kitVersion} と一致しません`);
+  const meta = (parse(readFileSync(yamlPath, "utf8")) ?? {}) as ClipMeta;
+  for (const e of validateMeta(name, meta)) errors.push(`${name}: ${e}`);
   for (const f of ["Scene.tsx", "timing.json"]) {
     if (!existsSync(path.join(dir, f))) errors.push(`${name}: ${f} がありません（tts / 映像実装が未完了）`);
   }
   const audio: { id: string; file: string }[] = [];
-  const timingPath = path.join(dir, "timing.json");
-  if (existsSync(timingPath)) {
-    const t = JSON.parse(readFileSync(timingPath, "utf8")) as { beats: { id: string; audio?: string }[] };
-    for (const b of t.beats) {
+  if (existsSync(path.join(dir, "timing.json"))) {
+    for (const b of readTiming(dir).beats) {
       if (!b.audio) continue;
       if (!existsSync(path.join(dir, b.audio))) errors.push(`${name}: ${b.audio} がありません（pnpm tts を実行してください）`);
       else audio.push({ id: b.id, file: b.audio });

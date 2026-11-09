@@ -9,8 +9,6 @@
     "kitVersion": 1
   },
   "scripts": {
-    "check:clip": "node scripts/check.ts",
-    "gen": "node scripts/gen-clips.ts",
     "check": "node scripts/gen-clips.ts && tsc -p tsconfig.json && node scripts/check.ts",
     "studio": "node scripts/gen-clips.ts && remotion studio --public-dir=../clip src/remotion-entry.ts",
     "voice-samples": "node scripts/voice-samples.ts",

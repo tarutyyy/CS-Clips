@@ -5,9 +5,9 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { factoryDir } from "./lib/clip.ts";
+import { VOICEVOX_URL, createVoicevox } from "./lib/tts/voicevox.ts";
 
-const ENGINE = process.env.VOICEVOX_URL ?? "http://localhost:50021";
 const SPEED = 1.1;
 
 // 解説動画向きになりそうな候補。{ id, 名前 }
@@ -27,29 +27,17 @@ const TEXT =
   "一億ぎょうのテーブルから、いちぎょうを探す。ビープラスぎなら、たった三回の比較で見つかります。" +
   "データが増えても、探す手間はほとんど増えません。";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const outDir = path.resolve(here, "../.cache/voice-samples");
+const outDir = path.join(factoryDir, ".cache/voice-samples");
 mkdirSync(outDir, { recursive: true });
 
-async function post(url: string, init?: RequestInit) {
-  const res = await fetch(url, { method: "POST", ...init });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}: ${url}`);
-  return res;
-}
-
+const voicevox = createVoicevox(VOICEVOX_URL);
 for (const c of CANDIDATES) {
-  const q = await post(
-    `${ENGINE}/audio_query?speaker=${c.id}&text=${encodeURIComponent(TEXT)}`,
-  );
-  const query = (await q.json()) as Record<string, unknown>;
-  query.speedScale = SPEED;
-  query.outputSamplingRate = 48000;
-  const s = await post(`${ENGINE}/synthesis?speaker=${c.id}`, {
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(query),
+  const { wav } = await voicevox.synthesize({
+    text: TEXT,
+    voice: { provider: "voicevox", speaker: c.id, speed: SPEED, pitch: 0, intonation: 1 },
   });
   const file = path.join(outDir, `${String(c.id).padStart(3, "0")}-${c.name}.wav`);
-  writeFileSync(file, Buffer.from(await s.arrayBuffer()));
+  writeFileSync(file, wav);
   console.log(`ok  ${c.id}\t${c.name}`);
 }
 console.log(`\n出力先: ${outDir}`);
