@@ -10,20 +10,27 @@ import path from "node:path";
 import { parse } from "yaml";
 import { cliArgs, clipFromArg } from "./lib/cli.ts";
 import {
-  MAX_SECONDS,
+  MAX_TOTAL_SECONDS,
+  PART_SECONDS,
+  clipTimeline,
   factoryDir,
   listClips,
+  readMeta,
   readSources,
   readTiming,
+  resolveParts,
   sourceHash,
   validateMeta,
+  validateParts,
   type ClipRef,
+  type PartRef,
 } from "./lib/clip.ts";
 import { auditStillsDir, creditFrom } from "./lib/audit.ts";
+import { firstUseWithoutFullName } from "./lib/notation.ts";
 import { beatsFileSchema } from "./lib/schema.ts";
 import { theme } from "../src/theme.ts";
 
-const MACHINE_FILES = ["clip.yaml", "beats.yaml", "Scene.tsx", "timing.json"];
+const PART_FILES = ["beats.yaml", "Scene.tsx", "timing.json"];
 const DOC_FILES = ["memo.md", "topic.md", "research.md", "script.md", "report.md"];
 const ALLOWED_PACKAGES = new Set(["@cs-clip/kit", "react", "react/jsx-runtime"]);
 const SKIP_DIRS = new Set(["audio", "out", "stills", "node_modules"]);
@@ -59,43 +66,46 @@ function importSpecifiers(src: string): string[] {
   return specs;
 }
 
-function checkClip(id: string, dir: string): Report {
-  const r: Report = { errors: [], warnings: [] };
-  const err = (m: string) => r.errors.push(m);
-  const warn = (m: string) => r.warnings.push(m);
-  const has = (f: string) => existsSync(path.join(dir, f));
+const isInside = (dir: string, p: string) => {
+  const rel = path.relative(dir, p);
+  return !rel.startsWith("..") && !path.isAbsolute(rel);
+};
 
-  // --- 必須ファイル（契約書 §2）
-  for (const f of MACHINE_FILES) if (!has(f)) err(`${f} がありません`);
-  for (const f of DOC_FILES) if (!has(f)) (strict ? err : warn)(`${f} がありません`);
+/** パート 1 つ分の検査（beats / timing / 音声 / Scene / 表記 / 尺）。prefix はメッセージの頭に付ける場所 */
+function checkPart(clip: ClipRef, part: PartRef, r: Report): void {
+  const at = part.legacy ? "" : `${part.rel}/`;
+  const err = (m: string) => r.errors.push(at + m);
+  const warn = (m: string) => r.warnings.push(at + m);
+  const has = (f: string) => existsSync(path.join(part.dir, f));
 
-  // --- clip.yaml（§2.1, §5）
-  if (has("clip.yaml")) {
-    const meta = (parse(readFileSync(path.join(dir, "clip.yaml"), "utf8")) ?? {}) as Record<string, unknown>;
-    validateMeta(id, meta).forEach(err);
-  }
+  for (const f of PART_FILES) if (!has(f)) err(`${f} がありません`);
 
   // --- beats.yaml
   let beatIds: string[] = [];
   let silenceIds = new Set<string>();
   if (has("beats.yaml")) {
-    const parsed = beatsFileSchema.safeParse(parse(readFileSync(path.join(dir, "beats.yaml"), "utf8")));
+    const parsed = beatsFileSchema.safeParse(parse(readFileSync(path.join(part.dir, "beats.yaml"), "utf8")));
     if (!parsed.success) {
       for (const i of parsed.error.issues) err(`beats.yaml: ${i.path.join(".")}: ${i.message}`);
     } else {
       beatIds = parsed.data.beats.map((b) => b.id);
       silenceIds = new Set(parsed.data.beats.filter((b) => b.silence !== undefined).map((b) => b.id));
+      // 表記の規則（仕様書 §3.9）：略語の初出に正式名称。字幕に出る文で数える
+      const texts = parsed.data.beats.map((b) => ({ beatId: b.id, text: b.subtitle ?? b.text }));
+      for (const i of firstUseWithoutFullName(texts)) {
+        warn(`ビート ${i.beatId}: 略語「${i.word}」の初出に正式名称がありません（「${i.word}（正式名称）」と書く。仕様書 §3.9）`);
+      }
     }
   }
 
   // --- timing.json と音声
   if (has("timing.json")) {
-    const t = readTiming(dir);
+    const t = readTiming(part.dir);
 
     if (beatIds.length > 0 && JSON.stringify(t.beats.map((b) => b.id)) !== JSON.stringify(beatIds)) {
       err("timing.json のビートが beats.yaml と一致しません（pnpm tts を実行し直してください）");
     }
-    if (t.sourceHash !== sourceHash(readSources(dir))) err("timing.json が古くなっています（beats.yaml か辞書が変わりました）。pnpm tts を実行してください");
+    if (t.sourceHash !== sourceHash(readSources(part.dir, clip.dir))) err("timing.json が古くなっています（beats.yaml か辞書が変わりました）。pnpm tts を実行してください");
 
     let prevEnd: number | undefined;
     for (const b of t.beats) {
@@ -114,50 +124,85 @@ function checkClip(id: string, dir: string): Report {
       prevEnd = b.endFrame;
     }
     if (prevEnd !== undefined && t.durationInFrames < prevEnd) err("durationInFrames が最後のビートより短いです");
-    const sec = t.durationInFrames / t.fps;
-    if (sec > MAX_SECONDS) warn(`総尺が ${sec.toFixed(1)} 秒です（目標は ${MAX_SECONDS} 秒以内）`);
+
+    // パートの尺の目安（仕様書 §3.3）。単一形式（旧クリップ）は対象外
+    if (!part.legacy) {
+      const sec = t.durationInFrames / t.fps;
+      const [lo, hi] = PART_SECONDS[part.role];
+      if (sec < lo || sec > hi) warn(`尺が ${sec.toFixed(1)} 秒です（${part.role} の目安は ${lo}〜${hi} 秒）`);
+    }
 
     if (has("audio")) {
       const used = new Set(t.beats.map((b) => b.audio && path.basename(b.audio)));
-      for (const f of readdirSync(path.join(dir, "audio"))) {
+      for (const f of readdirSync(path.join(part.dir, "audio"))) {
         if (f.endsWith(".wav") && !used.has(f)) warn(`audio/${f} はどのビートからも使われていません`);
       }
     }
   }
 
-  // --- Scene.tsx と import の境界（§6）
+  // --- Scene.tsx
+  if (has("Scene.tsx")) {
+    const scene = readFileSync(path.join(part.dir, "Scene.tsx"), "utf8");
+    if (!/\bexport\s+default\b/.test(scene)) err("Scene.tsx に export default がありません");
+    if (beatIds.length > 0) {
+      for (const m of scene.matchAll(/\buseBeat\(\s*["']([^"']+)["']/g)) {
+        if (!beatIds.includes(m[1])) err(`Scene.tsx: useBeat("${m[1]}") は${part.legacy ? "" : "このパートの "}beats.yaml にないビートです`);
+      }
+    }
+    // 最小文字サイズ（§7）。直書きされた fontSize の数値を調べる
+    for (const m of scene.matchAll(/\bfontSize\s*(?::|=)\s*\{?\s*(\d+)\b/g)) {
+      if (Number(m[1]) < theme.minFontSize) err(`Scene.tsx: fontSize ${m[1]} は最小 ${theme.minFontSize}px 未満です`);
+    }
+  }
+}
+
+function checkClip(clip: ClipRef): Report {
+  const { id, dir } = clip;
+  const r: Report = { errors: [], warnings: [] };
+  const err = (m: string) => r.errors.push(m);
+  const warn = (m: string) => r.warnings.push(m);
+  const has = (f: string) => existsSync(path.join(dir, f));
+
+  // --- 必須ファイル（契約書 §2）と clip.yaml（§2.1, §5）
+  if (!has("clip.yaml")) {
+    err("clip.yaml がありません");
+    return r;
+  }
+  for (const f of DOC_FILES) if (!has(f)) (strict ? err : warn)(`${f} がありません`);
+  const meta = readMeta(dir);
+  validateMeta(id, meta as unknown as Record<string, unknown>).forEach(err);
+  const partErrors = validateParts(dir, meta);
+  partErrors.forEach(err);
+  if (partErrors.length > 0) return r;
+
+  const parts = resolveParts(clip, meta);
+  for (const part of parts) checkPart(clip, part, r);
+
+  // --- 総尺（仕様書 §3.3）
+  const total = clipTimeline(parts);
+  const sec = total.durationInFrames / total.fps;
+  if (sec > MAX_TOTAL_SECONDS) err(`総尺が ${sec.toFixed(1)} 秒です（上限 ${MAX_TOTAL_SECONDS} 秒）`);
+
+  // --- import の境界（§6）。パートのファイルは自分のパートの外（別パート・クリップの外）を import しない
+  const partDirs = parts.filter((p) => !p.legacy).map((p) => p.dir);
   for (const file of listFiles(dir, [".ts", ".tsx"], SKIP_DIRS)) {
     const rel = path.relative(dir, file);
+    const home = partDirs.find((d) => isInside(d, file)) ?? dir;
     for (const spec of importSpecifiers(readFileSync(file, "utf8"))) {
       if (spec.startsWith(".")) {
         const resolved = path.resolve(path.dirname(file), spec);
-        const inside = path.relative(dir, resolved);
-        if (inside.startsWith("..") || path.isAbsolute(inside)) err(`${rel}: クリップの外を import しています ("${spec}")`);
+        if (!isInside(dir, resolved)) err(`${rel}: クリップの外を import しています ("${spec}")`);
+        else if (!isInside(home, resolved)) err(`${rel}: 別のパートを import しています ("${spec}")。共有したい図は factory の部品にする`);
       } else if (!ALLOWED_PACKAGES.has(spec)) {
         err(`${rel}: 許可されていない import です ("${spec}")。使えるのは @cs-clip/kit と react だけ`);
       }
     }
   }
-  if (has("Scene.tsx")) {
-    const scene = readFileSync(path.join(dir, "Scene.tsx"), "utf8");
-    if (!/\bexport\s+default\b/.test(scene)) err("Scene.tsx に export default がありません");
-    if (beatIds.length > 0) {
-      for (const m of scene.matchAll(/\buseBeat\(\s*["']([^"']+)["']/g)) {
-        if (!beatIds.includes(m[1])) err(`Scene.tsx: useBeat("${m[1]}") は beats.yaml にないビートです`);
-      }
-    }
-  }
-
-  // --- 最小文字サイズ（§7）。Scene.tsx に直書きされた fontSize の数値を調べる
-  if (has("Scene.tsx")) {
-    const scene = readFileSync(path.join(dir, "Scene.tsx"), "utf8");
-    for (const m of scene.matchAll(/\bfontSize\s*(?::|=)\s*\{?\s*(\d+)\b/g)) {
-      if (Number(m[1]) < theme.minFontSize) err(`Scene.tsx: fontSize ${m[1]} は最小 ${theme.minFontSize}px 未満です`);
-    }
-  }
 
   // --- stills の実測（§7.2, §7.3）。stills があるときだけ。古い可能性があるので警告は参考値
-  for (const f of auditStillsDir(path.join(dir, "stills"), creditFrom(readTiming(dir)))) (f.level === "error" ? err : warn)(`stills/${f.still}: ${f.message}`);
+  if (total.durationInFrames > 0) {
+    for (const f of auditStillsDir(path.join(dir, "stills"), creditFrom(total))) (f.level === "error" ? err : warn)(`stills/${f.still}: ${f.message}`);
+  }
   return r;
 }
 
@@ -187,7 +232,7 @@ const targets: ClipRef[] = target ? [clipFromArg("check", target)] : allClips;
 let errorCount = 0;
 let warnCount = 0;
 for (const c of targets) {
-  const r = checkClip(c.id, c.dir);
+  const r = checkClip(c);
   errorCount += r.errors.length;
   warnCount += r.warnings.length;
   const mark = r.errors.length > 0 ? "NG" : "OK";

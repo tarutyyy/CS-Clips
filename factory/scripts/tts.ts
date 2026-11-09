@@ -1,6 +1,7 @@
 /**
- * beats.yaml から音声（audio/*.wav）と timing.json を作る。
- * 使い方: pnpm tts 001   または   pnpm tts ../clip/001-db-index   （factory/ で実行）
+ * パートごとに beats.yaml から音声（audio/*.wav）と timing.json を作る。
+ * 使い方: pnpm tts 001 [パート id]   または   pnpm tts ../clip/001-db-index   （factory/ で実行）
+ *   パートを省くと全パート。単一形式のクリップ（clip.yaml に parts が無い）はクリップ直下が 1 パート。
  * 読み書きするのは、指定したクリップのディレクトリと factory/dict.yaml だけ。
  */
 import {
@@ -16,7 +17,17 @@ import path from "node:path";
 import { parse } from "yaml";
 import { theme } from "../src/theme.ts";
 import { cliArgs, clipFromArg, fail } from "./lib/cli.ts";
-import { MAX_SECONDS, readSources, sha256, sourceHash } from "./lib/clip.ts";
+import {
+  MAX_TOTAL_SECONDS,
+  clipTimeline,
+  readMeta,
+  readSources,
+  resolveParts,
+  sha256,
+  sourceHash,
+  validateParts,
+  type PartRef,
+} from "./lib/clip.ts";
 import { buildReading, type Dict } from "./lib/reading.ts";
 import { beatsFileSchema } from "./lib/schema.ts";
 import { buildTimeline, type BeatInput } from "./lib/timeline.ts";
@@ -27,88 +38,105 @@ import { wavDurationSec } from "./lib/wav.ts";
 const TOOL = "tts";
 const loadDict = (text: string): Dict => (text ? ((parse(text) as Dict | null) ?? {}) : {});
 
-const clip = clipFromArg(TOOL, cliArgs()[0]);
+const [clipArg, partArg] = cliArgs();
+const clip = clipFromArg(TOOL, clipArg);
+const meta = readMeta(clip.dir);
+const partErrors = validateParts(clip.dir, meta);
+if (partErrors.length > 0) fail(TOOL, `clip.yaml の parts が不正です\n${partErrors.map((e) => `  - ${e}`).join("\n")}`);
+const allParts = resolveParts(clip, meta);
+const parts = partArg ? allParts.filter((p) => p.id === partArg) : allParts;
+if (parts.length === 0) fail(TOOL, `パート "${partArg}" はありません（あるもの: ${allParts.map((p) => p.id).join(", ")}）`);
 
-if (!existsSync(path.join(clip.dir, "beats.yaml"))) fail(TOOL, `${clip.id}/beats.yaml がありません`);
-const sources = readSources(clip.dir);
-const parsed = beatsFileSchema.safeParse(parse(sources.beats));
-if (!parsed.success) {
-  fail(
-    TOOL,
-    `beats.yaml が不正です\n` +
-      parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n"),
-  );
-}
-const file = parsed.data;
+async function ttsPart(part: PartRef): Promise<void> {
+  const label = part.legacy ? clip.id : `${clip.id}/${part.rel}`;
+  if (!existsSync(path.join(part.dir, "beats.yaml"))) fail(TOOL, `${label}/beats.yaml がありません`);
+  const sources = readSources(part.dir, clip.dir);
+  const parsed = beatsFileSchema.safeParse(parse(sources.beats));
+  if (!parsed.success) {
+    fail(
+      TOOL,
+      `${label}/beats.yaml が不正です\n` +
+        parsed.error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n"),
+    );
+  }
+  const file = parsed.data;
 
-const commonDict = loadDict(sources.commonDict);
-const clipDict = loadDict(sources.clipDict);
+  const commonDict = loadDict(sources.commonDict);
+  const clipDict = loadDict(sources.clipDict);
 
-const provider: TtsProvider =
-  file.voice.provider === "voicevox"
-    ? createVoicevox(VOICEVOX_URL)
-    : fail(TOOL, `provider "${file.voice.provider}" は未実装です`);
+  const provider: TtsProvider =
+    file.voice.provider === "voicevox"
+      ? createVoicevox(VOICEVOX_URL)
+      : fail(TOOL, `provider "${file.voice.provider}" は未実装です`);
 
-const audioDir = path.join(clip.dir, "audio");
-const cacheDir = path.join(audioDir, ".cache");
-mkdirSync(cacheDir, { recursive: true });
+  const audioDir = path.join(part.dir, "audio");
+  const cacheDir = path.join(audioDir, ".cache");
+  mkdirSync(cacheDir, { recursive: true });
 
-const inputs: BeatInput[] = [];
-for (const beat of file.beats) {
-  const gapSec = beat.gap ?? file.timing.gap;
-  const subtitle = beat.subtitle ?? beat.text;
+  if (!part.legacy) console.log(`--- ${part.id}（${part.role}）`);
+  const inputs: BeatInput[] = [];
+  for (const beat of file.beats) {
+    const gapSec = beat.gap ?? file.timing.gap;
+    const subtitle = beat.subtitle ?? beat.text;
 
-  if (beat.silence !== undefined) {
-    inputs.push({ id: beat.id, audioSec: beat.silence, isSilence: true, gapSec, subtitle });
-    console.log(`silence  ${beat.id}\t${beat.silence}s`);
-    continue;
+    if (beat.silence !== undefined) {
+      inputs.push({ id: beat.id, audioSec: beat.silence, isSilence: true, gapSec, subtitle });
+      console.log(`silence  ${beat.id}\t${beat.silence}s`);
+      continue;
+    }
+
+    const reading = buildReading(beat, commonDict, clipDict);
+    const key = sha256(JSON.stringify({ voice: file.voice, reading }));
+    const cached = path.join(cacheDir, `${key}.wav`);
+    let wav: Buffer;
+    let how: string;
+    if (existsSync(cached)) {
+      wav = readFileSync(cached);
+      how = "cache";
+    } else {
+      wav = (await provider.synthesize({ text: reading, voice: file.voice })).wav;
+      writeFileSync(cached, wav);
+      how = "synth";
+    }
+    copyFileSync(cached, path.join(audioDir, `${beat.id}.wav`));
+    const audioSec = wavDurationSec(wav);
+    inputs.push({
+      id: beat.id,
+      audioSec,
+      isSilence: false,
+      gapSec,
+      subtitle,
+      audio: `audio/${beat.id}.wav`,
+    });
+    console.log(`${how.padEnd(8)} ${beat.id}\t${audioSec.toFixed(2)}s\t${reading}`);
   }
 
-  const reading = buildReading(beat, commonDict, clipDict);
-  const key = sha256(JSON.stringify({ voice: file.voice, reading }));
-  const cached = path.join(cacheDir, `${key}.wav`);
-  let wav: Buffer;
-  let how: string;
-  if (existsSync(cached)) {
-    wav = readFileSync(cached);
-    how = "cache";
-  } else {
-    wav = (await provider.synthesize({ text: reading, voice: file.voice })).wav;
-    writeFileSync(cached, wav);
-    how = "synth";
+  // beats.yaml にないビートの音声を消す
+  const keep = new Set(file.beats.filter((b) => b.silence === undefined).map((b) => `${b.id}.wav`));
+  for (const f of readdirSync(audioDir)) {
+    if (f.endsWith(".wav") && !keep.has(f)) rmSync(path.join(audioDir, f));
   }
-  copyFileSync(cached, path.join(audioDir, `${beat.id}.wav`));
-  const audioSec = wavDurationSec(wav);
-  inputs.push({
-    id: beat.id,
-    audioSec,
-    isSilence: false,
-    gapSec,
-    subtitle,
-    audio: `audio/${beat.id}.wav`,
+
+  const timeline = buildTimeline(inputs, {
+    fps: theme.fps,
+    leadIn: file.timing.leadIn,
+    tail: file.timing.tail,
   });
-  console.log(`${how.padEnd(8)} ${beat.id}\t${audioSec.toFixed(2)}s\t${reading}`);
+  const timing = {
+    fps: timeline.fps,
+    durationInFrames: timeline.durationInFrames,
+    sourceHash: sourceHash(sources),
+    beats: timeline.beats,
+  };
+  writeFileSync(path.join(part.dir, "timing.json"), JSON.stringify(timing, null, 2) + "\n");
+  if (!part.legacy) console.log(`${part.id}: ${(timing.durationInFrames / timing.fps).toFixed(1)} 秒`);
 }
 
-// beats.yaml にないビートの音声を消す
-const keep = new Set(file.beats.filter((b) => b.silence === undefined).map((b) => `${b.id}.wav`));
-for (const f of readdirSync(audioDir)) {
-  if (f.endsWith(".wav") && !keep.has(f)) rmSync(path.join(audioDir, f));
-}
+for (const part of parts) await ttsPart(part);
 
-const timeline = buildTimeline(inputs, {
-  fps: theme.fps,
-  leadIn: file.timing.leadIn,
-  tail: file.timing.tail,
-});
-const timing = {
-  fps: timeline.fps,
-  durationInFrames: timeline.durationInFrames,
-  sourceHash: sourceHash(sources),
-  beats: timeline.beats,
-};
-writeFileSync(path.join(clip.dir, "timing.json"), JSON.stringify(timing, null, 2) + "\n");
-
-const sec = timing.durationInFrames / timing.fps;
-console.log(`\ntts: ${clip.id} 総尺 ${sec.toFixed(1)} 秒（${timing.durationInFrames} フレーム）`);
-if (sec > MAX_SECONDS) console.warn(`警告: ${MAX_SECONDS} 秒を超えています`);
+const total = clipTimeline(allParts);
+const sec = total.durationInFrames / total.fps;
+console.log(`\ntts: ${clip.id} 総尺 ${sec.toFixed(1)} 秒（${total.durationInFrames} フレーム）`);
+const missing = total.parts.filter((p) => p.timing === null).map((p) => p.part.id);
+if (missing.length > 0) console.warn(`警告: timing.json が無いパートがあります（${missing.join(", ")}）。総尺に含めていません`);
+if (sec > MAX_TOTAL_SECONDS) console.warn(`警告: 上限 ${MAX_TOTAL_SECONDS} 秒を超えています`);
